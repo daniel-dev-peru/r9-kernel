@@ -1,5 +1,5 @@
 package org.raise9.kernel.utils.core.error;
-
+/*
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import lombok.Getter;
@@ -23,4 +23,4 @@ public class ApiError {
   @JsonProperty("exceptionDetails")
   private List<ApiErrorDetail> exceptionDetails = null;
 
-}
+}*/

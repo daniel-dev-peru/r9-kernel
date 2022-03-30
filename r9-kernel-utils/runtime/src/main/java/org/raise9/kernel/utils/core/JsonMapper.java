@@ -6,16 +6,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
-import org.raise9.kernel.utils.core.error.R9KernelUtilException;
+import org.raise9.kernel.exceptions.ApiError;
+import org.raise9.kernel.exceptions.ApiErrorDetail;
+import org.raise9.kernel.exceptions.R9KernelUtilException;
 
 @Slf4j
 public class JsonMapper {
   private static final ObjectMapper MP = new ObjectMapper();
+  private final String CODE_ERROR = "kU_1000";
 
   public ObjectNode createObjectNode() {
     return MP.createObjectNode();
   }
+
   public ArrayNode createArrayNode() {
     return MP.createArrayNode();
   }
@@ -47,8 +52,12 @@ public class JsonMapper {
     try {
       return (T) MP.readValue(data, type);
     } catch (Exception e) {
-      log.error("\nError convert data to object {} - {} \n", data, type, e);
-      throw new R9KernelUtilException("Error convert data : " + e.getLocalizedMessage());
+      log.error("Error convert data to object {} - {}", data, type, e);
+      ApiErrorDetail apiErrorDetail = new ApiErrorDetail();
+      apiErrorDetail.setComponent("JsonMapper");
+      apiErrorDetail.setDescription("Error convert data to object");
+      ApiError apiError = new ApiError(CODE_ERROR, "Error convert data to object convertObjectFromString", "Software", Arrays.asList(apiErrorDetail));
+      throw new R9KernelUtilException(apiError);
     }
   }
 
@@ -57,8 +66,12 @@ public class JsonMapper {
     try {
       return (T) MP.readValue(data, type);
     } catch (Exception e) {
-      log.error("\nError convert data to object {} - {} \n", data, type, e);
-      throw new R9KernelUtilException("Error convert data : " + e.getLocalizedMessage());
+      log.error("Error convert data to object {} - {}", data, type, e);
+      ApiErrorDetail apiErrorDetail = new ApiErrorDetail();
+      apiErrorDetail.setComponent("JsonMapper");
+      apiErrorDetail.setDescription("Error convert data to object");
+      ApiError apiError = new ApiError(CODE_ERROR, "Error convert data to object convertReferFromString", "Software", Arrays.asList(apiErrorDetail));
+      throw new R9KernelUtilException(apiError);
     }
   }
 
@@ -67,7 +80,11 @@ public class JsonMapper {
       return (T) MP.readValue(nodeObject.toString(), type);
     } catch (Exception e) {
       log.error("Error convert data to object {} ", nodeObject.toString(), e);
-      throw new R9KernelUtilException("Error convert data : " + e.getLocalizedMessage());
+      ApiErrorDetail apiErrorDetail = new ApiErrorDetail();
+      apiErrorDetail.setComponent("JsonMapper");
+      apiErrorDetail.setDescription("Error convert data to object");
+      ApiError apiError = new ApiError(CODE_ERROR, "Error convert data to object convertObject", "Software", Arrays.asList(apiErrorDetail));
+      throw new R9KernelUtilException(apiError);
     }
   }
 

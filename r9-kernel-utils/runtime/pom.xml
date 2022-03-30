@@ -30,6 +30,11 @@
       <artifactId>quarkus-resteasy-reactive</artifactId>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>org.raise9.kernel.exceptions</groupId>
+      <artifactId>r9-kernel-exceptions</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

@@ -24,6 +24,12 @@
       <artifactId>quarkus-junit5-internal</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.raise9.kernel.exceptions</groupId>
+      <artifactId>r9-kernel-exceptions-deployment</artifactId>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

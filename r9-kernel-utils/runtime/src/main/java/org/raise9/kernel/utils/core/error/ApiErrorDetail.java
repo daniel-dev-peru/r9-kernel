@@ -1,5 +1,5 @@
 package org.raise9.kernel.utils.core.error;
-
+/*
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,4 +19,4 @@ public class ApiErrorDetail {
   @JsonProperty("description")
   private String description;
 
-}
+}*/
