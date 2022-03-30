@@ -1,5 +1,7 @@
 # r9-kernel Project
 
+Raise 9 (r9) es un framework basado en tecnologia Quarkus enfocado a desarrollo de aplicaciones nativas sincronas y asincronas (tecnologia de eventos kafka).
+
 This project uses Quarkus, the Supersonic Subatomic Java Framework.
 
 If you want to learn more about Quarkus, please visit its website: https://quarkus.io/ .
