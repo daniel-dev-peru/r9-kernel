@@ -1,0 +1,163 @@
+openapi: 3.0.0
+info:
+  description: eb-users-ms
+  version: 0.0.1-SNAPSHOT
+  title: eb users core specification v1
+  contact:
+    email: danieldelgado27g@gmail.com
+tags:
+  - name: User
+    description: eb user ms core methods
+servers:
+  - url: 'http://localhost:28070/api/v1/core'
+    description: user core
+
+security:
+  - BearerAuth: []
+
+paths:
+  '/users':
+    post:
+
+      description: Create user
+      tags:
+        - User
+      summary: create user
+      operationId: create-user-core
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+        description: ''
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Los datos proporcionados no son validos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiException'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Ocurrio un error inesperado. Por favor contactarse con el Soporte o la transaccion ha expirado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiException'
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: request-id
+          description: id de solicitud
+        - schema:
+            type: string
+          in: header
+          name: transaction-id
+          description: id de transaccion completa
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+  schemas:
+    CreateUserRequest:
+      type: object
+      description: 'create user request object'
+      title: 'CreateUserRequest'
+      properties:
+        firstName:
+          type: string
+          description: firstName field
+        lastName:
+          type: string
+          description: lastName field
+        room:
+          type: string
+          description: room field
+        email:
+          type: string
+          description: email field
+          format: email
+        phoneNumber:
+          type: string
+          description: phoneNumber field
+        cmp:
+          type: string
+          description: cmp field
+        speciality:
+          type: array
+          items:
+            type: string
+          description: speciality field
+        password:
+          type: string
+          description: password field
+      required:
+        - firstName
+        - lastName
+        - email
+        - phoneNumber
+        - cmp
+        - password
+
+    ApiException:
+      title: ApiException
+      type: object
+      description: Datos del error de sistema.
+      x-examples:
+        example-1:
+          value:
+            code: TL0001
+            description: Error al llamar al servicio
+            errorType: TECHNICAL
+            exceptionDetails:
+              - code: MB0008
+                component: COAC-Wizard-back
+                description: Error no identificado
+      properties:
+        code:
+          type: string
+          description: Codigo de error de Sistema
+          example: TL0001
+        description:
+          type: string
+          description: Descripcion del error de Sistema
+          example: Error al llamar al servicio
+        errorType:
+          type: string
+          description: Tipo de Error de Sistema
+          example: TECHNICAL
+        exceptionDetails:
+          type: array
+          description: Lista de detalles del error
+          items:
+            $ref: '#/components/schemas/ApiExceptionDetail'
+    ApiExceptionDetail:
+      title: ApiExceptionDetail
+      type: object
+      properties:
+        code:
+          type: string
+          description: Codigo de error del Detalle/Proveedor
+          example: MB0008
+        component:
+          type: string
+          description: Nombre del componente de falla
+          example: COAC-Wizard-back
+        description:
+          type: string
+          description: Descripcion del Detalle
+          example: Codigo invalido para el canal
+      description: Datos del error tecnico.
+      x-examples:
+        example-1:
+          value:
+            code: MB0008
+            component: COAC-Wizard-back
+            description: Error no identificado

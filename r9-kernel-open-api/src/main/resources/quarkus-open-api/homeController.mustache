@@ -1,0 +1,74 @@
+package {{configPackage}};
+
+/*
+import org.springframework.web.bind.annotation.RequestMapping;
+
+{{#reactive}}
+import org.springframework.web.reactive.function.server.RouterFunction;
+import org.springframework.web.reactive.function.server.ServerResponse;
+{{/reactive}}
+
+{{^useSpringfox}}
+import java.io.IOException;
+import java.io.InputStream;
+{{/useSpringfox}}
+
+{{#reactive}}
+import java.net.URI;
+{{/reactive}}
+
+{{#reactive}}
+
+import static org.springframework.web.reactive.function.server.RequestPredicates.GET;
+import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+{{/reactive}}
+
+
+@Controller
+public class HomeController {
+
+{{^useSpringfox}}
+    private static YAMLMapper yamlMapper = new YAMLMapper();
+
+    @Value("classpath:/openapi.yaml")
+    private Resource openapi;
+
+    @Bean
+    public String openapiContent() throws IOException {
+        try(InputStream is = openapi.getInputStream()) {
+            return StreamUtils.copyToString(is, Charset.defaultCharset());
+        }
+    }
+
+    @GetMapping(value = "/openapi.yaml", produces = "application/vnd.oai.openapi")
+    @ResponseBody
+    public String openapiYaml() throws IOException {
+        return openapiContent();
+    }
+
+    @GetMapping(value = "/openapi.json", produces = "application/json")
+    @ResponseBody
+    public Object openapiJson() throws IOException {
+        return yamlMapper.readValue(openapiContent(), Object.class);
+    }
+
+{{/useSpringfox}}
+{{#reactive}}
+    @Bean
+    RouterFunction<ServerResponse> index() {
+        return route(
+            GET("/"),
+            req -> ServerResponse.temporaryRedirect(URI.create("{{#useSpringfox}}swagger-ui.html{{/useSpringfox}}{{^useSpringfox}}swagger-ui/index.html?url=../openapi.json{{/useSpringfox}}")).build()
+        );
+    }
+{{/reactive}}
+{{^reactive}}
+    @RequestMapping("/")
+    public String index() {
+        return "redirect:{{#useSpringfox}}swagger-ui.html{{/useSpringfox}}{{^useSpringfox}}swagger-ui/index.html?url=../openapi.json{{/useSpringfox}}";
+    }
+{{/reactive}}
+
+
+}
+*/

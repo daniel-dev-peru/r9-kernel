@@ -1,0 +1,2 @@
+{{^isArray}}Uni<{{returnType}}> result = Uni.createFrom().voidItem();{{/isArray}}{{#isArray}}Multi<{{returnType}}> result = Multi.createFrom().empty();{{/isArray}}    
+        return result;

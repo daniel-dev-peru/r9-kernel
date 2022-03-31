@@ -1,0 +1,99 @@
+package {{package}};
+
+
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.jboss.resteasy.annotations.SseElementType;
+
+{{#imports}}import {{import}};
+{{/imports}}
+
+{{#useBeanValidation}}
+import javax.validation.Valid;
+{{/useBeanValidation}}
+
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+
+
+import io.quarkus.arc.DefaultBean;
+import javax.enterprise.context.Dependent;
+
+{{#useBeanValidation}}
+import javax.validation.Valid;
+import javax.validation.constraints.*;
+{{/useBeanValidation}}
+
+import javax.enterprise.context.ApplicationScoped;
+
+{{#jdk8-no-delegate}}
+import java.util.Optional;
+{{/jdk8-no-delegate}}
+
+
+
+
+@Slf4j
+class {{classname}}DelegateConfiguration {
+
+  @Dependent
+  @Produces
+  @DefaultBean
+  public {{classname}}Delegate {{baseName}}ApiDelegate() {
+    log.info("Bean {{classname}}Delegate");
+    return new {{classname}}Delegate() {
+    };
+  }
+
+}
+
+
+{{#operations}}
+/**
+ * A delegate to be called by the {@link {{classname}}Controller}}.
+{{contextPath}}
+ */
+{{>generatedAnnotation}}
+public interface {{classname}}Delegate {
+{{#jdk8-default-interface}}
+
+{{/jdk8-default-interface}}
+
+{{#operation}}
+    /**
+     * {{httpMethod}} {{{path}}}{{#summary}} : {{.}}{{/summary}}
+    {{#notes}}
+     * {{.}}
+    {{/notes}}
+     *
+    {{#allParams}}
+     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{#defaultValue}}, default to {{.}}{{/defaultValue}}){{/required}}
+    {{/allParams}}
+     * @return {{#responses}}{{message}} (status code {{code}}){{^-last}}
+     *         or {{/-last}}{{/responses}}
+    {{#isDeprecated}}
+     * @deprecated
+    {{/isDeprecated}}
+    {{#externalDocs}}
+     * {{description}}
+     * @see <a href="{{url}}">{{summary}} Documentation</a>
+    {{/externalDocs}}
+     * @see {{classname}}#{{operationId}}
+     */
+    {{#jdk8-default-interface}}default {{/jdk8-default-interface}} {{>returnTypes}} {{operationId}}({{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}{{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}{{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}} ) {{#unhandledException}} throws Exception{{/unhandledException}}{{^jdk8-default-interface}};{{/jdk8-default-interface}}{{#jdk8-default-interface}} {
+        {{>methodBody}}
+    }{{/jdk8-default-interface}}
+
+{{/operation}}
+}
+
+
+
+{{/operations}}
