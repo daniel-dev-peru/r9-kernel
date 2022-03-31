@@ -23,7 +23,7 @@ import javax.validation.constraints.*;
  * Datos del error de sistema.
  */
 
-@javax.annotation.Generated(value = "org.raise9.kernel.open.api.QuarkusOpenApiGenerator", date = "2022-03-31T06:51:16.451752200-05:00[America/Bogota]")
+@javax.annotation.Generated(value = "org.raise9.kernel.open.api.QuarkusOpenApiGenerator", date = "2022-03-31T15:53:51.451246600-05:00[America/Bogota]")
 public class ModelApiException   {
   @JsonProperty("code")
   private String code;

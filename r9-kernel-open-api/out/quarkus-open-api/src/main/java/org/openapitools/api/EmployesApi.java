@@ -37,7 +37,7 @@ import pe.com.eberos.fm.utils.core.extension.metadata.HttpDataCurrent;
 /api/v1/core
 
 */
-//@javax.annotation.Generated(value = "org.raise9.kernel.open.api.QuarkusOpenApiGenerator", date = "2022-03-31T06:51:16.451752200-05:00[America/Bogota]")
+//@javax.annotation.Generated(value = "org.raise9.kernel.open.api.QuarkusOpenApiGenerator", date = "2022-03-31T15:53:51.451246600-05:00[America/Bogota]")
 //@Validated
 
 //@Api(value = "employes", description = "the employes API")

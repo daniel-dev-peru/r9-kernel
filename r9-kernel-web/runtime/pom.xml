@@ -18,7 +18,6 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-resteasy-reactive</artifactId>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.raise9.kernel.utils</groupId>

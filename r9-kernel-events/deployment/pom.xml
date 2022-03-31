@@ -15,6 +15,32 @@
       <artifactId>quarkus-arc-deployment</artifactId>
     </dependency>
     <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-reactive-messaging-kafka-deployment</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-elasticsearch-rest-client-deployment</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-vertx-deployment</artifactId>
+    </dependency>
+<!--    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-resteasy-mutiny-deployment</artifactId>
+    </dependency>-->
+    <dependency>
+      <groupId>org.raise9.kernel.utils</groupId>
+      <artifactId>r9-kernel-utils-deployment</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.raise9.kernel.concurrent</groupId>
+      <artifactId>r9-kernel-concurrent-deployment</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.raise9.kernel.events</groupId>
       <artifactId>r9-kernel-events</artifactId>
       <version>${project.version}</version>
