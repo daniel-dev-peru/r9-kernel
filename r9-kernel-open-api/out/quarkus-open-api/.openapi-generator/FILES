@@ -1,0 +1,10 @@
+src/main/java/org/openapitools/CoreUserApplication.java
+src/main/java/org/openapitools/api/EmployesApi.java
+src/main/java/org/openapitools/api/EmployesApiDelegate.java
+src/main/java/org/openapitools/api/UsersApi.java
+src/main/java/org/openapitools/api/UsersApiDelegate.java
+src/main/java/org/openapitools/configuration/HomeController.java
+src/main/java/org/openapitools/model/ApiExceptionDetail.java
+src/main/java/org/openapitools/model/CreateUserRequest.java
+src/main/java/org/openapitools/model/ModelApiException.java
+src/main/resources/application.properties
