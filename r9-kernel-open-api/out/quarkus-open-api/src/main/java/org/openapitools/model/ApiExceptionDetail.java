@@ -20,7 +20,7 @@ import javax.validation.constraints.*;
  * Datos del error tecnico.
  */
 
-@javax.annotation.Generated(value = "org.raise9.kernel.open.api.QuarkusOpenApiGenerator", date = "2022-03-31T15:53:51.451246600-05:00[America/Bogota]")
+@javax.annotation.Generated(value = "org.raise9.kernel.open.api.QuarkusOpenApiGenerator", date = "2022-03-31T19:00:46.384006100-05:00[America/Bogota]")
 public class ApiExceptionDetail   {
   @JsonProperty("code")
   private String code;

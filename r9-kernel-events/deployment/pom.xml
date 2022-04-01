@@ -17,14 +17,17 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-reactive-messaging-kafka-deployment</artifactId>
+      <!--<scope>provided</scope>-->
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-elasticsearch-rest-client-deployment</artifactId>
+     <!-- <scope>provided</scope>-->
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-vertx-deployment</artifactId>
+     <!-- <scope>provided</scope>-->
     </dependency>
 <!--    <dependency>
       <groupId>io.quarkus</groupId>

@@ -21,14 +21,17 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-reactive-messaging-kafka</artifactId>
+     <!-- <scope>provided</scope>-->
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-elasticsearch-rest-client</artifactId>
+     <!-- <scope>provided</scope>-->
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-vertx</artifactId>
+      <!--<scope>provided</scope>-->
     </dependency>
 <!--    <dependency>
       <groupId>io.quarkus</groupId>
