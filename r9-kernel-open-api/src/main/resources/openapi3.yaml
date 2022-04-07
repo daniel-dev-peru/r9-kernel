@@ -24,6 +24,8 @@ paths:
         - User
       summary: create user
       operationId: create-user-core
+      x-java-r9-header:
+        $ref: '#/components/schemas/CreateUserHeader'
       requestBody:
         content:
           application/json:
@@ -38,7 +40,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiException'
+                $ref: '#/components/schemas/ApiErrorException'
         '401':
           description: Unauthorized
         '500':
@@ -46,7 +48,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiException'
+                $ref: '#/components/schemas/ApiErrorException'
       parameters:
         - schema:
             type: string
@@ -67,6 +69,8 @@ paths:
         - User
       summary: create user
       operationId: create-user-core2
+      x-java-r9-header:
+        $ref: '#/components/schemas/CreateUserHeader'
       requestBody:
         content:
           application/json:
@@ -81,7 +85,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiException'
+                $ref: '#/components/schemas/ApiErrorException'
         '401':
           description: Unauthorized
         '500':
@@ -89,7 +93,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiException'
+                $ref: '#/components/schemas/ApiErrorException'
       parameters:
         - schema:
             type: string
@@ -110,6 +114,8 @@ paths:
         - User
       summary: create user
       operationId: create-empl-core2
+      x-java-r9-header:
+        $ref: '#/components/schemas/CreateUserHeader'
       requestBody:
         content:
           application/json:
@@ -124,7 +130,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiException'
+                $ref: '#/components/schemas/ApiErrorException'
         '401':
           description: Unauthorized
         '500':
@@ -132,7 +138,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiException'
+                $ref: '#/components/schemas/ApiErrorException'
       parameters:
         - schema:
             type: string
@@ -152,6 +158,32 @@ components:
       in: header
       name: Authorization
   schemas:
+    CreateUserHeader:
+      type: object
+      description: 'create user header object'
+      title: 'CreateUserHeader'
+      properties:
+        requestId:
+          type: string
+          description: requestId field
+        transactionId:
+          type: string
+          description: transactionId field
+        applicationId:
+          type: string
+          description: applicationId field
+        requestDate:
+          type: string
+          description: requestDate field
+        authorization:
+          type: string
+          description: authorization field
+        sessionId:
+          type: string
+          description: sessionId field
+        other:
+          type: string
+          description: other field
     CreateUserRequest:
       type: object
       description: 'create user request object'
@@ -192,8 +224,8 @@ components:
         - cmp
         - password
 
-    ApiException:
-      title: ApiException
+    ApiErrorException:
+      title: ApiErrorException
       type: object
       description: Datos del error de sistema.
       x-examples:

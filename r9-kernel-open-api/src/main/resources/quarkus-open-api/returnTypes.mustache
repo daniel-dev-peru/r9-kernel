@@ -1,1 +1,9 @@
-{{#isArray}}{{#reactive}}Multi{{/reactive}}{{^reactive}}{{{returnContainer}}}{{/reactive}}<{{{returnType}}}>{{/isArray}} {{^isArray}}Uni<{{^returnContainer}}{{{returnType}}}{{/returnContainer}}>{{/isArray}}
+{{#isArray}}
+    {{#reactive}}Multi{{/reactive}}
+    {{^reactive}}
+        {{{returnContainer}}}
+    {{/reactive}}<{{{returnType}}}>{{/isArray}}
+    {{^isArray}}Uni<{{^returnContainer}}
+        {{{returnType}}}
+    {{/returnContainer}}>
+{{/isArray}}
