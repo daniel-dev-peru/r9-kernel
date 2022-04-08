@@ -10,6 +10,11 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.jboss.resteasy.annotations.SseElementType;
+import io.quarkus.arc.DefaultBean;
+import io.smallrye.mutiny.Uni;
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.context.Dependent;
+import javax.inject.Inject;
 
 {{#imports}}import {{import}};
 {{/imports}}
@@ -20,6 +25,10 @@ import org.jboss.resteasy.annotations.SseElementType;
 
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.context.Dependent;
+import javax.inject.Inject;
+import javax.ws.rs.Produces;
 
 
 import io.quarkus.arc.DefaultBean;
@@ -36,16 +45,80 @@ import javax.enterprise.context.ApplicationScoped;
     import java.util.Optional;
 {{/jdk8-no-delegate}}
 
+
+{{#operations}}
+    /**
+    * A delegate to be called by the {@link {{classname}}Controller}}.
+    {{contextPath}}
+    */
+
+    {{>generatedAnnotation}}
+
+    @Slf4j
+    @Dependent
+    @Produces
+    @DefaultBean
+
+    class {{classname}}Resource implements {{classname}}Delegate{
+    {{#jdk8-default-interface}}
+
+    {{/jdk8-default-interface}}
+
+    {{#operation}}
+
+        {{#vendorExtensions.x-java-r9-data-driven}}
+            @Inject
+            {{#vendorExtensions.x-java-r9-data-driven-class-invoke}}{{{.}}}{{/vendorExtensions.x-java-r9-data-driven-class-invoke}} {{#vendorExtensions.x-java-r9-data-driven-class-var}}{{{.}}}{{/vendorExtensions.x-java-r9-data-driven-class-var}};
+        {{/vendorExtensions.x-java-r9-data-driven}}
+
+        /**
+        * {{httpMethod}} {{{path}}}{{#summary}} : {{.}}{{/summary}}
+        {{#notes}}
+            * {{.}}
+        {{/notes}}
+        *
+        {{#allParams}}
+            * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{#defaultValue}}, default to {{.}}{{/defaultValue}}){{/required}}
+        {{/allParams}}
+        * @return {{#responses}}{{message}} (status code {{code}}){{^-last}}
+            *         or {{/-last}}{{/responses}}
+        {{#isDeprecated}}
+            * @deprecated
+        {{/isDeprecated}}
+        {{#externalDocs}}
+            * {{description}}
+            * @see <a href="{{url}}">{{summary}} Documentation</a>
+        {{/externalDocs}}
+        * @see {{classname}}#{{operationId}}
+        */
+        public {{>returnTypes}} {{operationId}}(
+        {{#vendorExtensions.x-java-r9-header}}
+            {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
+        {{/vendorExtensions.x-java-r9-header}}
+
+        {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}{{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}{{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}} ) {{#unhandledException}} throws Exception{{/unhandledException}}
+        {
+        {{>methodBody}}
+        }
+
+    {{/operation}}
+    }
+
+
+
+{{/operations}}
+
+
 @Slf4j
 class {{classname}}DelegateConfiguration {
 
-    @Dependent
+    /*@Dependent
     @Produces
     @DefaultBean
     public {{classname}}Delegate {{baseName}}ApiDelegate() {
         log.info("Bean {{classname}}Delegate");
         return new {{classname}}Delegate() {};
-    }
+    }*/
 
 }
 
@@ -57,9 +130,6 @@ class {{classname}}DelegateConfiguration {
     */
     {{>generatedAnnotation}}
     public interface {{classname}}Delegate {
-    {{#jdk8-default-interface}}
-
-    {{/jdk8-default-interface}}
 
     {{#operation}}
         /**
@@ -82,14 +152,12 @@ class {{classname}}DelegateConfiguration {
         {{/externalDocs}}
         * @see {{classname}}#{{operationId}}
         */
-        {{#jdk8-default-interface}}default {{/jdk8-default-interface}} {{>returnTypes}} {{operationId}}(
+        {{>returnTypes}} {{operationId}}(
         {{#vendorExtensions.x-java-r9-header}}
             {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
         {{/vendorExtensions.x-java-r9-header}}
 
-        {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}{{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}{{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}} ) {{#unhandledException}} throws Exception{{/unhandledException}}{{^jdk8-default-interface}};{{/jdk8-default-interface}}{{#jdk8-default-interface}} {
-        {{>methodBody}}
-        }{{/jdk8-default-interface}}
+        {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}{{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}{{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}} ) {{#unhandledException}} throws Exception{{/unhandledException}};
 
     {{/operation}}
     }
@@ -97,3 +165,4 @@ class {{classname}}DelegateConfiguration {
 
 
 {{/operations}}
+

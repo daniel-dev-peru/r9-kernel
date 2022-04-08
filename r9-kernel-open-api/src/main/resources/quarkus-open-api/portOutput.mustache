@@ -1,0 +1,51 @@
+package {{packagePortOutput}};
+
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.jboss.resteasy.annotations.SseElementType;
+
+import io.quarkus.arc.DefaultBean;
+import javax.enterprise.context.Dependent;
+
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+
+
+public interface {{classname}} {
+
+{{#operation}}
+
+    {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}});
+
+{{/operation}}
+
+
+}
+
+
+
+@Slf4j
+@Dependent
+@Produces
+@DefaultBean
+class {{classname}}ImplDbPort implements {{classname}}{
+
+{{#operation}}
+
+    public {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}}){
+        log.info("{{operationId}}ImplDbPort start");
+        {{^isArray}}Uni<{{returnType}}> result = Uni.createFrom().voidItem();{{/isArray}}{{#isArray}}Multi<{{returnType}}> result = Multi.createFrom().empty();{{/isArray}}
+        return result;
+    }
+
+{{/operation}}
+
+
+}

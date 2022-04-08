@@ -57,13 +57,11 @@ public class R9OpenAPIQuarkusCodeGeneratorTest {
         .setGeneratorName("quarkus-open-api") // use this codegen library
         // .setInputSpec("src/main/resources/ejemplo.yml") // sample OpenAPI file
         .setInputSpec("src/main/resources/openapi3.yaml") // sample OpenAPI file
-
         // .setInputSpec("../../../modules/openapi-generator/src/test/resources/2_0/petstore.yaml")
         // // sample OpenAPI file
         // .setInputSpec("https://raw.githubusercontent.com/openapitools/openapi-generator/master/modules/openapi-generator/src/test/resources/2_0/petstore.yaml")
         // // or from the server
         .setOutputDir("out/quarkus-open-api")
-
         // .addAdditionalProperty("delegatePattern",true)
         // .addAdditionalProperty("reactive",true)
         .addAdditionalProperty("booleanGetterPrefix", "is")
@@ -71,12 +69,11 @@ public class R9OpenAPIQuarkusCodeGeneratorTest {
         // .addAdditionalProperty("library","quarkus")
         .addAdditionalProperty("apiPackage", "org.r9.app.api.adapter.input.web")
         .addAdditionalProperty("modelPackage", "org.r9.app.api.adapter.input.model")
-        .addAdditionalProperty("configPackage", "org.r9.app.config")
+        .addAdditionalProperty("configPackage", "org.r9.app.api.config")
         .addAdditionalProperty("invokerPackage", "org.r9.app")
-
-        .addAdditionalProperty("iteractorPackage", "org.r9.app.api.domain.input.iteractor")
-        .addAdditionalProperty("portPackage", "org.r9.app.api.domain.output.port")
-
+        .addAdditionalProperty("portPackage", "org.r9.app.api.domain.port")
+        .addAdditionalProperty("database", true)
+        .addAdditionalProperty("portPackageImpl", "org.r9.app.api.adapter.output.db")
         .addAdditionalProperty("appMainClass", "CoreUserApplication")
         .addAdditionalProperty("appPathBase", "/api/v1/core"); // output directory
 

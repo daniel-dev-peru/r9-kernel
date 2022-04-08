@@ -4,12 +4,19 @@ import com.google.common.collect.ImmutableMap;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.responses.ApiResponse;
+import io.swagger.v3.oas.models.responses.ApiResponses;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import java.io.File;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -27,9 +34,16 @@ import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.CodegenResponse;
 import org.openapitools.codegen.CodegenType;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.TemplateManager;
+import org.openapitools.codegen.api.TemplatePathLocator;
 import org.openapitools.codegen.languages.AbstractJavaCodegen;
 import org.openapitools.codegen.languages.features.BeanValidationFeatures;
 import org.openapitools.codegen.languages.features.PerformBeanValidationFeatures;
+import org.openapitools.codegen.templating.HandlebarsEngineAdapter;
+import org.openapitools.codegen.templating.MustacheEngineAdapter;
+import org.openapitools.codegen.templating.TemplateManagerOptions;
+import org.openapitools.codegen.utils.StringUtils;
+import org.openapitools.codegen.utils.URLPathUtils;
 
 @Getter
 @Setter
@@ -41,7 +55,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
   public static final String APP_PATH_BASE = "appPathBase";
   public static final String CONFIG_PACKAGE = "configPackage";
   public static final String BASE_PACKAGE = "basePackage";
-  //public static final String BASE_PACKAGE = "invokePackage";
   public static final String INTERFACE_ONLY = "interfaceOnly";
   public static final String DELEGATE_PATTERN = "delegatePattern";
   public static final String SINGLE_CONTENT_TYPES = "singleContentTypes";
@@ -65,6 +78,14 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
   protected boolean interfaceOnly = false;
   protected boolean singleContentTypes = false;
   protected boolean skipDefaultInterface = false;
+
+
+  public static final String DATA_BASE = "database";
+  protected boolean database = false;
+  public static final String PORT_PACKAGE = "portPackage";
+  protected String portPackage = "org.openapitools.domain.port";
+  public static final String PORT_PACKAGE_IMPL = "portPackageImpl";
+  protected String portImplPackage = "org.openapitools.domain.port";
 
   protected boolean useBeanValidation = true;
   protected boolean performBeanValidation = false;
@@ -111,111 +132,82 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
 
     apiTestTemplateFiles.clear();
 
-
     additionalProperties.put(JACKSON, "true");
     additionalProperties.put("openbrace", OPEN_BRACE);
     additionalProperties.put("closebrace", CLOSE_BRACE);
-
-
-    supportedLibraries.put(QUARKUS_LIBRARY, "Quarkus Server application.");
 
     cliOptions.add(new CliOption(TITLE, "server title name or client service name").defaultValue(title));
     cliOptions.add(new CliOption(CONFIG_PACKAGE, "configuration package for generated code").defaultValue(this.getConfigPackage()));
     cliOptions.add(new CliOption(BASE_PACKAGE, "base package (invokerPackage) for generated code").defaultValue(this.getBasePackage()));
     cliOptions.add(CliOption.newBoolean(DELEGATE_PATTERN, "Whether to generate the server files using the delegate pattern", delegatePattern));
-
     cliOptions.add(new CliOption(APP_NAME_QUARKUS, "Name class main of quarkus").defaultValue(appNameBase));
     cliOptions.add(new CliOption(APP_PATH_BASE, "Path Base quarkus app").defaultValue(appPathBase));
-
     cliOptions.add(CliOption.newBoolean(SKIP_DEFAULT_INTERFACE, "Whether to generate default implementations for java8 interfaces", skipDefaultInterface));
-
     cliOptions.add(CliOption.newBoolean(REACTIVE, "wrap responses in Uni/Multi smallrye types (quarkus only)", reactive));
-
-    // revisar VIRTUAL_SERVICE
     cliOptions.add(CliOption.newBoolean(VIRTUAL_SERVICE, "Generates the virtual service. For more details refer - https://github.com/virtualansoftware/virtualan/wiki"));
-
     cliOptions.add(CliOption.newBoolean(USE_BEANVALIDATION, "Use BeanValidation API annotations", useBeanValidation));
     cliOptions.add(CliOption.newBoolean(PERFORM_BEANVALIDATION, "Use Bean Validation Impl. to perform BeanValidation", performBeanValidation));
 
-
     supportedLibraries.put(QUARKUS_LIBRARY, "Quarkus Server application.");
+
+    cliOptions.add(CliOption.newBoolean(DATA_BASE, "wrap database context", database));
+    cliOptions.add(new CliOption(PORT_PACKAGE, "wrap port context").defaultValue(portPackage));
+    cliOptions.add(new CliOption(PORT_PACKAGE_IMPL, "wrap port db impl context").defaultValue(portImplPackage));
 
     setLibrary(QUARKUS_LIBRARY);
 
     CliOption library = new CliOption(CodegenConstants.LIBRARY, CodegenConstants.LIBRARY_DESC).defaultValue(QUARKUS_LIBRARY);
     library.setEnum(supportedLibraries);
     cliOptions.add(library);
-
     cliOptions.add(new CliOption(APP_NAME_QUARKUS, "Name class main of quarkus").defaultValue(appNameBase));
     cliOptions.add(new CliOption(APP_PATH_BASE, "Path Base quarkus app").defaultValue(appPathBase));
+
+    cliOptions.add(CliOption.newBoolean(REACTIVE, "wrap responses in Uni/Multi smallrye types (quarkus only)", reactive));
 
     /*
     //cliOptions.add(CliOption.newBoolean(USE_TAGS, "use tags for creating interface and controller classnames", useTags));
     //cliOptions.add(CliOption.newBoolean(USE_BEANVALIDATION, "Use BeanValidation API annotations", useBeanValidation));
     //cliOptions.add(CliOption.newBoolean(PERFORM_BEANVALIDATION, "Use Bean Validation Impl. to perform BeanValidation", performBeanValidation));
     //cliOptions.add(CliOption.newBoolean(IMPLICIT_HEADERS, "Skip header parameters in the generated API methods using @ApiImplicitParams annotation.", implicitHeaders));
-
     //cliOptions.add(CliOption.newBoolean(API_FIRST, "Generate the API from the OAI spec at server compile time (API first approach)", apiFirst));
     //cliOptions.add(CliOption.newBoolean(USE_OPTIONAL, "Use Optional container for optional parameters", useOptional));
-
     //cliOptions.add(CliOption.newBoolean(RETURN_SUCCESS_CODE, "Generated server returns 2xx code", returnSuccessCode));
     //cliOptions.add(CliOption.newBoolean(UNHANDLED_EXCEPTION_HANDLING, "Declare operation methods to throw a generic exception and allow unhandled exceptions (useful for Quarkus `@ServerExceptionMapper` directives).", unhandledException));
-
-
-
     apiTestTemplateFiles.clear();
-
     additionalProperties.put(JACKSON, "true");
     additionalProperties.put("openbrace", OPEN_BRACE);
     additionalProperties.put("closebrace", CLOSE_BRACE);
-
     if (additionalProperties.containsKey(DELEGATE_PATTERN)) {
       this.setDelegatePattern(Boolean.parseBoolean(additionalProperties.get(DELEGATE_PATTERN).toString()));
     }
-
     */
-
-
-
-
-
   }
 
   @Override
   public void processOpts() {
     log.info("Init processOpts invokePackage {} | apiPackage {} | basePackage {} | modelPackage {}", invokePackage, apiPackage, basePackage, modelPackage);
-
-
-
     additionalProperties.put("jdk8-default-interface", !this.skipDefaultInterface);
-
     this.setBasePackage((String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE));
-
     if (additionalProperties.containsKey(BASE_PACKAGE)) {
       this.setBasePackage((String) additionalProperties.get(BASE_PACKAGE));
     } else {
       additionalProperties.put(BASE_PACKAGE, basePackage);
     }
-
     if (additionalProperties.containsKey(CONFIG_PACKAGE)) {
       this.setConfigPackage((String) additionalProperties.get(CONFIG_PACKAGE));
     } else {
       additionalProperties.put(CONFIG_PACKAGE, configPackage);
     }
-
     this.interfaceOnly = false;
     if (!this.interfaceOnly) {
       if (QUARKUS_LIBRARY.equals(library)) {
         if (additionalProperties.containsKey(APP_NAME_QUARKUS)) {
           String nameApp = (String) additionalProperties.get(APP_NAME_QUARKUS);
-
           supportingFiles.add(new SupportingFile("openapiQuarkus.mustache", (sourceFolder + File.separator + basePackage).replace(".", File.separator), nameApp + ".java"));
         } else {
           supportingFiles.add(new SupportingFile("openapiQuarkus.mustache", (sourceFolder + File.separator + basePackage).replace(".", File.separator), "QuarkusApplication.java"));
         }
-
         supportingFiles.add(new SupportingFile("application.mustache", ("src.main.resources").replace(".", File.separator), "application.properties"));
-
         supportingFiles.add(new SupportingFile("homeController.mustache", (sourceFolder + File.separator + configPackage).replace(".", File.separator), "HomeController.java"));
       }
     }
@@ -223,20 +215,15 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     additionalProperties.put("isDelegate", "true");
     apiTemplateFiles.put("apiDelegate.mustache", "Delegate.java");
     //apiTemplateFiles.put("services.mustache", "Service.java");
-
    /* log.info("----------------------------------");
-
     List<Pair<String, String>> configOptions = additionalProperties.entrySet().stream().filter(e -> !Arrays.asList(API_FIRST, "hideGenerationTimestamp").contains(e.getKey())).filter(e -> cliOptions.stream().map(CliOption::getOpt).anyMatch(opt -> opt.equals(e.getKey()))).map(e -> Pair.of(e.getKey(), e.getValue().toString())).collect(Collectors.toList());
-
     additionalProperties.put(BASE_PACKAGE, basePackage);
     log.info("Set base package to invoker package ({})", basePackage);
-
     if (additionalProperties.containsKey(BASE_PACKAGE)) {
       this.setBasePackage((String) additionalProperties.get(BASE_PACKAGE));
     } else {
       additionalProperties.put(BASE_PACKAGE, basePackage);
     }
-
     additionalProperties.put("configOptions", configOptions);
     log.info("configOptions {}", configOptions);
     log.info("BASE_PACKAGE {}", additionalProperties.get(BASE_PACKAGE));
@@ -257,77 +244,56 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     if (additionalProperties.containsKey(TITLE)) {
       this.setTitle((String) additionalProperties.get(TITLE));
     }
-
     if (additionalProperties.containsKey(CONFIG_PACKAGE)) {
       this.setConfigPackage((String) additionalProperties.get(CONFIG_PACKAGE));
     } else {
       additionalProperties.put(CONFIG_PACKAGE, configPackage);
     }
-
     if (additionalProperties.containsKey(APP_NAME_QUARKUS)) {
       this.setAppNameBase((String) additionalProperties.get(APP_NAME_QUARKUS));
       log.info("APP_NAME_QUARKUS {}", this.getAppNameBase());
     } else {
       additionalProperties.put(APP_NAME_QUARKUS, appNameBase);
     }
-
     if (additionalProperties.containsKey(APP_PATH_BASE)) {
       this.setAppPathBase((String) additionalProperties.get(APP_PATH_BASE));
       log.info("APP_PATH_BASE {}", this.getAppPathBase());
     } else {
       additionalProperties.put(APP_PATH_BASE, appPathBase);
     }
-
     if (additionalProperties.containsKey(CONFIG_PACKAGE)) {
       this.setConfigPackage((String) additionalProperties.get(CONFIG_PACKAGE));
     } else {
       additionalProperties.put(CONFIG_PACKAGE, configPackage);
     }
-
-
     if (additionalProperties.containsKey(BASE_PACKAGE)) {
       this.setBasePackage((String) additionalProperties.get(BASE_PACKAGE));
     } else {
       additionalProperties.put(BASE_PACKAGE, basePackage);
     }
-
     if (additionalProperties.containsKey(DELEGATE_PATTERN)) {
       this.setDelegatePattern(Boolean.parseBoolean(additionalProperties.get(DELEGATE_PATTERN).toString()));
     }
-
     if (additionalProperties.containsKey(SINGLE_CONTENT_TYPES)) {
       this.setSingleContentTypes(Boolean.parseBoolean(additionalProperties.get(SINGLE_CONTENT_TYPES).toString()));
     }
-
     if (additionalProperties.containsKey(SKIP_DEFAULT_INTERFACE)) {
       this.setSkipDefaultInterface(Boolean.parseBoolean(additionalProperties.get(SKIP_DEFAULT_INTERFACE).toString()));
     }
-
     supportingFiles.add(new SupportingFile("application.mustache", ("src.main.resources").replace(".", File.separator), "application.properties"));
-
     supportingFiles.add(new SupportingFile("homeController.mustache", (sourceFolder + File.separator + configPackage).replace(".", File.separator), "HomeController.java"));
-
     additionalProperties.put("delegate-method", true);
     additionalProperties.put("isDelegate", "true");
-
     apiTemplateFiles.put("apiDelegate.mustache", "Delegate.java");
-
     additionalProperties.put("jdk8-default-interface", true);
-
     additionalProperties.put("lambdaRemoveDoubleQuote", (Mustache.Lambda) (fragment, writer) -> writer.write(fragment.execute().replaceAll("\"", Matcher.quoteReplacement(""))));
     additionalProperties.put("lambdaEscapeDoubleQuote", (Mustache.Lambda) (fragment, writer) -> writer.write(fragment.execute().replaceAll("\"", Matcher.quoteReplacement("\\\""))));
     additionalProperties.put("lambdaRemoveLineBreak", (Mustache.Lambda) (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\r|\\n", "")));
-
     additionalProperties.put("lambdaTrimWhitespace", new TrimWhitespaceLambda());
-
     additionalProperties.put("lambdaSplitString", new SplitStringLambda());
-
-
     additionalProperties.put("jdk8-default-interface", true);
-
 */
     super.processOpts();
-
 /*
     if (additionalProperties.containsKey(APP_NAME_QUARKUS)) {
       //additionalProperties.put("basePackage",basePackage);
@@ -359,21 +325,15 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
   @Override
   public CodegenModel fromModel(String name, Schema model) {
     CodegenModel ms = super.fromModel(name,model);
-    //log.info("imports " +ms.imports);
     Set<String> imports = ms.imports.stream().filter(s -> !(s.equals("ApiModel")||s.equals("ApiModelProperty"))).collect(Collectors.toSet());
-    //log.info("fromModel vendorExtensions " +ms.vendorExtensions);
-    //log.info("imports " +imports);
     ms.imports = imports;
     return ms;
   }
+
   @Override
   public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
     super.postProcessModelProperty(model,property);
-
-    //log.info("imports " +model.imports);
     Set<String> imports = model.imports.stream().filter(s -> !(s.equals("ApiModel")||s.equals("ApiModelProperty"))).collect(Collectors.toSet());
-    //log.info("postProcessModelProperty vendorExtensions " +model.vendorExtensions);
-
     model.imports = imports;
   }
 
@@ -385,39 +345,26 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     return Stream.of(pathItem.getGet(), pathItem.getPost(), pathItem.getDelete(), pathItem.getHead(), pathItem.getOptions(), pathItem.getPatch(), pathItem.getPut(), pathItem.getTrace());
   }
 
+  private final HandlebarsEngineAdapter handlebarsEngineAdapter = new HandlebarsEngineAdapter();
+  private final MustacheEngineAdapter mustacheEngineAdapter = new MustacheEngineAdapter();
+  private final TemplatePathLocator locator = new ResourceTemplateLoader();
+  static class ResourceTemplateLoader implements TemplatePathLocator {
+    @Override
+    public String getFullTemplatePath(String relativeTemplateFile) {
+      log.info("ResourceTemplateLoader relativeTemplateFile : {}" ,relativeTemplateFile);
+      return Paths.get("quarkus-open-api","", relativeTemplateFile).toString();
+    }
+  }
+
   @Override
   public void preprocessOpenAPI(OpenAPI openAPI) {
 
-    /*getOperations(openAPI).forEach(operation -> {
-      Arrays.stream(ParameterTypeExtensions.values()).forEach(parameterTypeExtensions -> {
-        Optional.of(operation).map((v0) -> {
-          return v0.getExtensions();
-        }).filter(map -> {
-          return map.containsKey(parameterTypeExtensions.getExtension());
-        }).ifPresent(o -> {
-          LOGGER.info(" map parameter : {}", o.keySet());
-          LOGGER.info(" parameters : {}", (null == operation.getParameters()) ? null : operation.getParameters().size());
-          try {
-            new SchemaProcessor(parameterTypeExtensions).processSchemasOfOperation(operation, openAPI);
-
-          } catch (Exception e) {
-
-            LOGGER.info(" e : {}", e.getMessage(), e);
-
-          }
-
-        });
-      });
-    });*/
-
-
     getOperations(openAPI).forEach(operation -> {
       Map<String, Object> extesions = operation.getExtensions();
-      //log.info("extesions : {}", extesions);
       for (Map.Entry<String,Object> m :extesions.entrySet()  ) {
         if(m.getKey().equals("x-java-r9-header")){
+          log.info("x-java-r9-header active on operation {}" , operation.getOperationId());
           Map<String, Schema> getSchemas = openAPI.getComponents().getSchemas();
-          //
           for (Map.Entry<String, Schema> c :getSchemas.entrySet() ) {
             if(c.getKey().contains("Header")){
               Map<String, Object> getSchemasTemp =null;
@@ -434,33 +381,23 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
         }
       }
     });
-
-
-
     super.preprocessOpenAPI(openAPI);
-
-   /* if (!additionalProperties.containsKey(TITLE)) {
-      // From the title, compute a reasonable name for the package and the API
+    if (!additionalProperties.containsKey(TITLE)) {
       String title = openAPI.getInfo().getTitle();
-      //LOGGER.info("preprocessOpenAPI Title : {} , paths : {} - {}", openAPI.getPaths().keySet());
-
-      // Drop any API suffix
       if (title != null) {
         title = title.trim().replace(" ", "-");
         if (title.toUpperCase(Locale.ROOT).endsWith("API")) {
           title = title.substring(0, title.length() - 3);
         }
-
-        this.title = camelize(sanitizeName(title), true);
+        this.title = StringUtils.camelize(sanitizeName(title), true);
       }
       additionalProperties.put(TITLE, this.title);
     }
-
     if (!additionalProperties.containsKey(SERVER_PORT)) {
       URL url = URLPathUtils.getServerURL(openAPI, serverVariableOverrides());
       this.additionalProperties.put(SERVER_PORT, URLPathUtils.getPort(url, 8080));
     }
-
+/*
     if (openAPI.getPaths() != null) {
       for (Map.Entry<String, PathItem> openAPIGetPathsEntry : openAPI.getPaths().entrySet()) {
         // String pathname = openAPIGetPathsEntry.getKey();
@@ -490,20 +427,19 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     }*/
   }
 
-
   @Override
   public Map<String, Object> postProcessOperationsWithModels(Map<String, Object> objs, List<Object> allModels) {
+
+
+
     Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
     if (operations != null) {
       List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
       for (final CodegenOperation operation : ops) {
         log.info("->  operation summary {} - returnType {}", operation.summary , operation.returnType);
-
         List<CodegenResponse> responses = operation.responses;
-
         if (responses != null) {
           for (final CodegenResponse resp : responses) {
-            //log.info("resp code: {} return type : {}", resp.code, resp.dataType);
             if ("0".equals(resp.code)) {
               resp.code = "200";
             }
@@ -519,7 +455,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
             });
           }
         }
-
         doDataTypeAssignment(operation.returnType, new DataTypeAssigner() {
           @Override
           public void setReturnType(final String returnType) {
@@ -530,7 +465,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
             operation.returnContainer = returnContainer;
           }
         });
-
         if(operation.getHasVendorExtensions()){
           Map<String, Object> vendorExtensions = operation.vendorExtensions;
           List<CodegenParameter> parameters = new ArrayList<>();
@@ -548,9 +482,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
                 newCodParam.baseName = ms.classname;
                 newCodParam.paramName = ms.classVarName;
                 parameters.add(newCodParam);
-
-               // operation.
-
               }
             }
             if(!parameters.isEmpty()){
@@ -563,7 +494,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
               List<CodegenParameter> allParams = operation.allParams;
               List<CodegenParameter> allParamsTemp = new ArrayList<>();
               for (CodegenParameter c:allParams  ) {
-                //log.info("baseName : {} - {} - {}", c.baseName, c.paramName, c.isBodyParam );
                 if(!c.isHeaderParam){
                   allParamsTemp.add(c);
                 }
@@ -572,19 +502,144 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
               allParams.addAll(allParamsTemp);
             }
           }
+        }
+      }
+    }
 
+
+    Map<String, Object> extesionsParent = openAPI.getExtensions();
+    if(null != extesionsParent){
+      for (Map.Entry<String,Object> m : extesionsParent.entrySet()  ) {
+        //getOperations(openAPI).forEach(operation -> {
+
+        // Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+
+        List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        for (final CodegenOperation operation : ops) {
+          log.info("->  operation summary {} - returnType {}", operation.summary, operation.returnType);
+
+          if(m.getKey().equals("x-java-r9-data-driven")){
+            Boolean v = (Boolean)m.getValue();
+            if(v){
+              String portsPackage = (String) additionalProperties.get("portPackage");
+              String portsPackageInput = portsPackage + ".input";
+              String portInputUseCaseName = StringUtils.camelize(sanitizeName(operation.operationId), true);
+              portInputUseCaseName = portInputUseCaseName.substring(0, 1).toUpperCase() + portInputUseCaseName.substring(1) + "UseCase";
+              String portsPackageOutput = portsPackage + ".output";
+              String portName = StringUtils.camelize(sanitizeName(operation.operationId), true);
+              portName = portName.substring(0, 1).toUpperCase() + portName.substring(1) + "Port";
+              String portsPackageDbOutput = (String)additionalProperties.get("portPackageImpl");
+              String portDbName = StringUtils.camelize(sanitizeName(operation.operationId), true)+ "DbPort";
+              portDbName = portDbName.substring(0, 1).toUpperCase() + portDbName.substring(1) ;
+
+              {
+                String packagePortInputUseCase = (sourceFolder + File.separator + portsPackageInput).replace(".", File.separator);
+                log.info("x-java-r9-data-driven usecases active on operation {} | iteractor : {} | portsPackageInput: {} | Folder: {}", operation.operationId, portInputUseCaseName, portsPackageInput, packagePortInputUseCase);
+
+                TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                Map<String, Object> data = new HashMap<>();
+                data.put("packagePortInput", portsPackageInput);
+                data.put("classname", portInputUseCaseName);
+                //data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true)+ "UseCase");
+                data.put("dbportClass", portsPackageOutput+"."+portName );
+                data.put("dbportClassVar", StringUtils.camelize(sanitizeName(operation.operationId), true)+ "Port");
+                data.put("operation", operation);
+                operation.vendorExtensions.put("x-java-r9-data-driven", true);
+                operation.vendorExtensions.put("x-java-r9-data-driven-class-invoke", portsPackageInput+"."+portInputUseCaseName );
+                operation.vendorExtensions.put("x-java-r9-data-driven-class-var", StringUtils.camelize(sanitizeName(operation.operationId), true)+ "UseCase");
+                try {
+                  manager.write(data, "portInput.mustache", new File(outputFolder + "/" + packagePortInputUseCase + "/" + portInputUseCaseName + ".java"));
+                } catch (Exception e) {
+                  log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                }
+              }
+              {
+                String packagePortOutputUseCase = (sourceFolder + File.separator + portsPackageOutput).replace(".", File.separator);
+                {
+                  log.info("x-java-r9-data-driven ports active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portName, portsPackageOutput, packagePortOutputUseCase);
+                  TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                  TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                  Map<String, Object> data = new HashMap<>();
+                  data.put("packagePortOutput", portsPackageOutput);
+                  data.put("classname", portName);
+                  data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true) + "Port");
+                  data.put("operation", operation);
+                  try {
+                    manager.write(data, "portOutput.mustache", new File(outputFolder + "/" + packagePortOutputUseCase + "/" + portName + ".java"));
+                  } catch (Exception e) {
+                    log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                  }
+                }
+                log.info("x-java-r9-data-driven active database  : {} ", additionalProperties.get("database"));
+                Boolean database = (Boolean)additionalProperties.get("database");
+                if(database){
+                  String packageDbPortOutputUseCase = (sourceFolder + File.separator + portsPackageDbOutput).replace(".", File.separator);
+                  log.info("x-java-r9-data-driven dbports class  active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portDbName, portsPackageDbOutput, packageDbPortOutputUseCase);
+                  TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                  TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                  Map<String, Object> data = new HashMap<>();
+                  data.put("packagePortOutput", portsPackageDbOutput);
+                  data.put("classname", portDbName);
+                  data.put("importimplement", portsPackageOutput+".*");
+                  data.put("implementclassname", portName);
+                  //data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true));
+                  data.put("operation", operation);
+                  try {
+                    manager.write(data, "portDbOutput.mustache", new File(outputFolder + "/" + packageDbPortOutputUseCase + "/" + portDbName + ".java"));
+                  } catch (Exception e) {
+                    log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                  }
+                }
+              }
+            }
+          }
+          if(m.getKey().equals("x-java-r9-events-choreography")){
+            Boolean v = (Boolean)m.getValue();
+            if(v){
+            /*
+            String iteractorPackage = (String)additionalProperties.get("iteractorPackage");
+            String portsPackage = (String)additionalProperties.get("portPackage");
+            String portsPackageInput = portsPackage + ".input";
+            String portsPackageOutput = portsPackage + ".output";
+
+            String portInputUseCaseName = StringUtils.camelize(sanitizeName(operation.getOperationId()), true);
+            portInputUseCaseName = portInputUseCaseName.substring(0, 1).toUpperCase() + portInputUseCaseName.substring(1)+ "UseCase";
+            //additionalProperties.put("classname",nameFile);
+            additionalProperties.put("packagePortInput",portsPackageInput);
+            String packagePortInputUseCase = (sourceFolder + File.separator + portsPackageInput).replace(".", File.separator);
+            log.info("x-java-r9-events-choreography active on operation {} | iteractor : {} | portsPackageInput: {} | Folder: {}" , operation.getOperationId(), portInputUseCaseName , portsPackageInput, packagePortInputUseCase);
+
+            TemplateManagerOptions opts = new TemplateManagerOptions(false,false);
+            TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{ locator });
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("packagePortInput",portsPackageInput);
+            data.put("classname",portInputUseCaseName);
+
+            //Path target = Files.get("test-templatemanager");
+
+            try {
+              File written = manager.write(data, "portOutput.mustache", new File(outputFolder+"/"+packagePortInputUseCase+"/"+portInputUseCaseName + ".java"));
+            } catch (Exception e){
+
+            }
+            */
+            }
+          }
 
 
         }
+
+
+        //});
       }
     }
 
 
     return super.postProcessOperationsWithModels(objs, allModels);
   }
-
 /*
-
 @Override
     @SuppressWarnings({"static-method", "unchecked"})
     public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
@@ -676,7 +731,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
 
   private interface DataTypeAssigner {
     void setReturnType(String returnType);
-
     void setReturnContainer(String returnContainer);
   }
 

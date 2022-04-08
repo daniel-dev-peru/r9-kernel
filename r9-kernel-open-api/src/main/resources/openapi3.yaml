@@ -15,6 +15,9 @@ servers:
 security:
   - BearerAuth: []
 
+x-java-r9-data-driven: true
+x-java-r9-events-choreography: false
+
 paths:
   '/users':
     post:

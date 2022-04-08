@@ -1,2 +1,16 @@
-{{^isArray}}Uni<{{returnType}}> result = Uni.createFrom().voidItem();{{/isArray}}{{#isArray}}Multi<{{returnType}}> result = Multi.createFrom().empty();{{/isArray}}    
+
+
+    {{^vendorExtensions.x-java-r9-data-driven}}
+        {{^isArray}}Uni<{{returnType}}> result = Uni.createFrom().voidItem();{{/isArray}}{{#isArray}}Multi<{{returnType}}> result = Multi.createFrom().empty();{{/isArray}}
         return result;
+    {{/vendorExtensions.x-java-r9-data-driven}}
+
+    {{#vendorExtensions.x-java-r9-data-driven}}
+
+        return {{#vendorExtensions.x-java-r9-data-driven-class-var}}{{{.}}}{{/vendorExtensions.x-java-r9-data-driven-class-var}}.execute();
+    {{/vendorExtensions.x-java-r9-data-driven}}
+
+
+
+
+

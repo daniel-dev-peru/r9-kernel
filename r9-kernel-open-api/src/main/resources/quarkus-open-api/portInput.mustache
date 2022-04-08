@@ -1,0 +1,51 @@
+package {{packagePortInput}};
+
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.*;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.jboss.resteasy.annotations.SseElementType;
+
+import io.quarkus.arc.DefaultBean;
+import javax.enterprise.context.Dependent;
+
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import javax.inject.Inject;
+
+public interface {{classname}} {
+
+{{#operation}}
+
+    {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}});
+
+{{/operation}}
+
+
+}
+
+@Slf4j
+@Dependent
+@Produces
+@DefaultBean
+class {{classname}}ImplIteractor implements {{classname}}{
+
+    @Inject
+    {{dbportClass}} {{dbportClassVar}};
+
+{{#operation}}
+
+    public {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}}){
+        log.info("{{operationId}}Iteractor start");
+        return {{dbportClassVar}}.execute();
+    }
+
+{{/operation}}
+
+
+}
