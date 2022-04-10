@@ -11,17 +11,13 @@ tags:
 servers:
   - url: 'http://localhost:28070/api/v1/core'
     description: user core
-
 security:
   - BearerAuth: []
-
 x-java-r9-data-driven: true
 x-java-r9-events-choreography: false
-
 paths:
-  '/users':
+  /users:
     post:
-
       description: Create user
       tags:
         - User
@@ -63,10 +59,8 @@ paths:
           in: header
           name: transaction-id
           description: id de transaccion completa
-
-  '/users/core/data':
+  /users/core/data:
     put:
-
       description: Create user
       tags:
         - User
@@ -108,10 +102,8 @@ paths:
           in: header
           name: transaction-id
           description: id de transaccion completa
-
-  '/employes/core/data':
+  /employes/core/data:
     put:
-
       description: Create user
       tags:
         - User
@@ -153,7 +145,6 @@ paths:
           in: header
           name: transaction-id
           description: id de transaccion completa
-
 components:
   securitySchemes:
     BearerAuth:
@@ -163,8 +154,8 @@ components:
   schemas:
     CreateUserHeader:
       type: object
-      description: 'create user header object'
-      title: 'CreateUserHeader'
+      description: create user header object
+      title: CreateUserHeader
       properties:
         requestId:
           type: string
@@ -189,8 +180,9 @@ components:
           description: other field
     CreateUserRequest:
       type: object
-      description: 'create user request object'
-      title: 'CreateUserRequest'
+      description: create user request object
+      title: CreateUserRequest
+      x-java-r9-entity-domian: UserEntity
       properties:
         firstName:
           type: string
@@ -226,6 +218,77 @@ components:
         - phoneNumber
         - cmp
         - password
+    UserEntity:
+      type: object
+      description: "User Entity"
+      title: UserEntity
+      x-java-r9-rest-entity: false
+      x-java-r9-domain-entity: true
+      x-java-r9-convert-entity-db: UserEntityDb
+      properties:
+        firstName:
+          type: string
+          description: firstName field
+        lastName:
+          type: string
+          description: lastName field
+        room:
+          type: string
+          description: room field
+        email:
+          type: string
+          description: email field
+          format: email
+        phoneNumber:
+          type: string
+          description: phoneNumber field
+        cmp:
+          type: string
+          description: cmp field
+        speciality:
+          type: array
+          items:
+            type: string
+          description: speciality field
+        password:
+          type: string
+          description: password field
+    UserEntityDb:
+      type: object
+      x-java-r9-rest-entity: false
+      description: "User Entity Db"
+      title:
+      x-java-r9-db-name: users
+      x-java-r9-db-entity: true
+      x-java-r9-convert-return-entity: UserEntity
+      properties:
+        firstName:
+          type: string
+          description: firstName field
+        lastName:
+          type: string
+          description: lastName field
+        room:
+          type: string
+          description: room field
+        email:
+          type: string
+          description: email field
+          format: email
+        phoneNumber:
+          type: string
+          description: phoneNumber field
+        cmp:
+          type: string
+          description: cmp field
+        speciality:
+          type: array
+          items:
+            type: string
+          description: speciality field
+        password:
+          type: string
+          description: password field
 
     ApiErrorException:
       title: ApiErrorException

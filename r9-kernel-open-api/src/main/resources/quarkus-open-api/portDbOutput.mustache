@@ -20,13 +20,28 @@ import io.smallrye.mutiny.Uni;
 
 import {{importimplement}};
 
+{{#imports}}import {{import}};
+{{/imports}}
+
+{{#importModel}}import {{{.}}}{{/importModel}}
+
 @Slf4j
 @ApplicationScoped
 public class {{classname}} implements {{implementclassname}}{
 
 {{#operation}}
 
-    public {{>returnTypes}} execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}}) {
+    public {{>returnTypes}} execute(
+
+
+    {{#vendorExtensions.x-java-r9-header}}
+        {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
+    {{/vendorExtensions.x-java-r9-header}}
+    {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}
+    {{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}
+    {{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+
+    ) {
         log.info("{{operationId}} start");
         Uni<Void> result = Uni.createFrom().voidItem();
         return result;

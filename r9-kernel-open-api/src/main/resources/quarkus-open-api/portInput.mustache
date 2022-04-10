@@ -18,11 +18,23 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import javax.inject.Inject;
 
+{{#imports}}import {{import}};
+{{/imports}}
+
+{{#importModel}}import {{{.}}}{{/importModel}}
+
 public interface {{classname}} {
 
 {{#operation}}
 
-    {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}});
+    {{>returnTypes}}execute(
+        {{#vendorExtensions.x-java-r9-header}}
+            {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
+        {{/vendorExtensions.x-java-r9-header}}
+        {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}
+        {{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}
+        {{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+    );
 
 {{/operation}}
 
@@ -40,9 +52,27 @@ class {{classname}}ImplIteractor implements {{classname}}{
 
 {{#operation}}
 
-    public {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}}){
+    public {{>returnTypes}}execute(
+
+    {{#vendorExtensions.x-java-r9-header}}
+        {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
+    {{/vendorExtensions.x-java-r9-header}}
+
+    {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}
+    {{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}
+    {{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+
+    ){
         log.info("{{operationId}}Iteractor start");
-        return {{dbportClassVar}}.execute();
+        return {{dbportClassVar}}.execute(
+
+    {{#vendorExtensions.x-java-r9-header}}
+        {{#vendorExtensions.x-java-r9-header-param}}{{{.}}}{{/vendorExtensions.x-java-r9-header-param}} ,
+    {{/vendorExtensions.x-java-r9-header}}
+
+    {{#allParams}}{{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+
+    );
     }
 
 {{/operation}}

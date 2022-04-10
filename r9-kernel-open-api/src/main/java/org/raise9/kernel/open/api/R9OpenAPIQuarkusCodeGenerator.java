@@ -1,18 +1,13 @@
 package org.raise9.kernel.open.api;
 
-import com.google.common.collect.ImmutableMap;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
-import io.swagger.v3.oas.models.responses.ApiResponse;
-import io.swagger.v3.oas.models.responses.ApiResponses;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.parameters.Parameter;
 import java.io.File;
+import java.math.BigInteger;
 import java.net.URL;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +20,7 @@ import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.StringEscapeUtils;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
@@ -42,6 +38,7 @@ import org.openapitools.codegen.languages.features.PerformBeanValidationFeatures
 import org.openapitools.codegen.templating.HandlebarsEngineAdapter;
 import org.openapitools.codegen.templating.MustacheEngineAdapter;
 import org.openapitools.codegen.templating.TemplateManagerOptions;
+import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 import org.openapitools.codegen.utils.URLPathUtils;
 
@@ -49,6 +46,11 @@ import org.openapitools.codegen.utils.URLPathUtils;
 @Setter
 @Slf4j
 public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implements BeanValidationFeatures, PerformBeanValidationFeatures {
+
+  private final HandlebarsEngineAdapter handlebarsEngineAdapter = new HandlebarsEngineAdapter();
+  private final MustacheEngineAdapter mustacheEngineAdapter = new MustacheEngineAdapter();
+  private final TemplatePathLocator locator = new ResourceTemplateLoader();
+
   public static final String TITLE = "title";
   public static final String SERVER_PORT = "serverPort";
   public static final String APP_NAME_QUARKUS = "appMainClass";
@@ -79,9 +81,17 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
   protected boolean singleContentTypes = false;
   protected boolean skipDefaultInterface = false;
 
-
   public static final String DATA_BASE = "database";
   protected boolean database = false;
+
+  public static final String ENTITIES_PACKAGE = "entitiesPackage";
+  protected String entities_package = "org.openapitools.entities";
+
+
+  public static final String TYPE_DATABASE = "typeDatabaseExtension";
+  protected String typedatabaseDefault = null;
+
+
   public static final String PORT_PACKAGE = "portPackage";
   protected String portPackage = "org.openapitools.domain.port";
   public static final String PORT_PACKAGE_IMPL = "portPackageImpl";
@@ -98,6 +108,7 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
   protected String invokePackage = "org.openapitools";
   protected String basePackage = "org.openapitools";
 
+  Map<String, Schema> schemasEntitiesMapTemp = new HashMap<>();
 
   public R9OpenAPIQuarkusCodeGenerator() {
     super();
@@ -153,6 +164,8 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     cliOptions.add(CliOption.newBoolean(DATA_BASE, "wrap database context", database));
     cliOptions.add(new CliOption(PORT_PACKAGE, "wrap port context").defaultValue(portPackage));
     cliOptions.add(new CliOption(PORT_PACKAGE_IMPL, "wrap port db impl context").defaultValue(portImplPackage));
+    cliOptions.add(new CliOption(ENTITIES_PACKAGE, "wrap port context").defaultValue(entities_package));
+    cliOptions.add(new CliOption(TYPE_DATABASE, "wrap port context").defaultValue(typedatabaseDefault));
 
     setLibrary(QUARKUS_LIBRARY);
 
@@ -163,24 +176,6 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     cliOptions.add(new CliOption(APP_PATH_BASE, "Path Base quarkus app").defaultValue(appPathBase));
 
     cliOptions.add(CliOption.newBoolean(REACTIVE, "wrap responses in Uni/Multi smallrye types (quarkus only)", reactive));
-
-    /*
-    //cliOptions.add(CliOption.newBoolean(USE_TAGS, "use tags for creating interface and controller classnames", useTags));
-    //cliOptions.add(CliOption.newBoolean(USE_BEANVALIDATION, "Use BeanValidation API annotations", useBeanValidation));
-    //cliOptions.add(CliOption.newBoolean(PERFORM_BEANVALIDATION, "Use Bean Validation Impl. to perform BeanValidation", performBeanValidation));
-    //cliOptions.add(CliOption.newBoolean(IMPLICIT_HEADERS, "Skip header parameters in the generated API methods using @ApiImplicitParams annotation.", implicitHeaders));
-    //cliOptions.add(CliOption.newBoolean(API_FIRST, "Generate the API from the OAI spec at server compile time (API first approach)", apiFirst));
-    //cliOptions.add(CliOption.newBoolean(USE_OPTIONAL, "Use Optional container for optional parameters", useOptional));
-    //cliOptions.add(CliOption.newBoolean(RETURN_SUCCESS_CODE, "Generated server returns 2xx code", returnSuccessCode));
-    //cliOptions.add(CliOption.newBoolean(UNHANDLED_EXCEPTION_HANDLING, "Declare operation methods to throw a generic exception and allow unhandled exceptions (useful for Quarkus `@ServerExceptionMapper` directives).", unhandledException));
-    apiTestTemplateFiles.clear();
-    additionalProperties.put(JACKSON, "true");
-    additionalProperties.put("openbrace", OPEN_BRACE);
-    additionalProperties.put("closebrace", CLOSE_BRACE);
-    if (additionalProperties.containsKey(DELEGATE_PATTERN)) {
-      this.setDelegatePattern(Boolean.parseBoolean(additionalProperties.get(DELEGATE_PATTERN).toString()));
-    }
-    */
   }
 
   @Override
@@ -211,154 +206,15 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
         supportingFiles.add(new SupportingFile("homeController.mustache", (sourceFolder + File.separator + configPackage).replace(".", File.separator), "HomeController.java"));
       }
     }
-
     additionalProperties.put("isDelegate", "true");
     apiTemplateFiles.put("apiDelegate.mustache", "Delegate.java");
-    //apiTemplateFiles.put("services.mustache", "Service.java");
-   /* log.info("----------------------------------");
-    List<Pair<String, String>> configOptions = additionalProperties.entrySet().stream().filter(e -> !Arrays.asList(API_FIRST, "hideGenerationTimestamp").contains(e.getKey())).filter(e -> cliOptions.stream().map(CliOption::getOpt).anyMatch(opt -> opt.equals(e.getKey()))).map(e -> Pair.of(e.getKey(), e.getValue().toString())).collect(Collectors.toList());
-    additionalProperties.put(BASE_PACKAGE, basePackage);
-    log.info("Set base package to invoker package ({})", basePackage);
-    if (additionalProperties.containsKey(BASE_PACKAGE)) {
-      this.setBasePackage((String) additionalProperties.get(BASE_PACKAGE));
-    } else {
-      additionalProperties.put(BASE_PACKAGE, basePackage);
-    }
-    additionalProperties.put("configOptions", configOptions);
-    log.info("configOptions {}", configOptions);
-    log.info("BASE_PACKAGE {}", additionalProperties.get(BASE_PACKAGE));
-    log.info("INVOKER_PACKAGE {}", additionalProperties.get(CodegenConstants.INVOKER_PACKAGE));
-    log.info("----------------------------------");
-    if (!additionalProperties.containsKey(BASE_PACKAGE) && additionalProperties.containsKey(CodegenConstants.INVOKER_PACKAGE)) {
-      this.setBasePackage((String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE));
-      additionalProperties.put(BASE_PACKAGE, basePackage);
-      log.info("Set base package to invoker package ({})", basePackage);
-    }
-    log.info("----------------------------------");
-    if (additionalProperties.containsKey(BASE_PACKAGE)) {
-      this.setBasePackage((String) additionalProperties.get(BASE_PACKAGE));
-    } else {
-      additionalProperties.put(BASE_PACKAGE, basePackage);
-    }
-    log.info("----------------------------------");
-    if (additionalProperties.containsKey(TITLE)) {
-      this.setTitle((String) additionalProperties.get(TITLE));
-    }
-    if (additionalProperties.containsKey(CONFIG_PACKAGE)) {
-      this.setConfigPackage((String) additionalProperties.get(CONFIG_PACKAGE));
-    } else {
-      additionalProperties.put(CONFIG_PACKAGE, configPackage);
-    }
-    if (additionalProperties.containsKey(APP_NAME_QUARKUS)) {
-      this.setAppNameBase((String) additionalProperties.get(APP_NAME_QUARKUS));
-      log.info("APP_NAME_QUARKUS {}", this.getAppNameBase());
-    } else {
-      additionalProperties.put(APP_NAME_QUARKUS, appNameBase);
-    }
-    if (additionalProperties.containsKey(APP_PATH_BASE)) {
-      this.setAppPathBase((String) additionalProperties.get(APP_PATH_BASE));
-      log.info("APP_PATH_BASE {}", this.getAppPathBase());
-    } else {
-      additionalProperties.put(APP_PATH_BASE, appPathBase);
-    }
-    if (additionalProperties.containsKey(CONFIG_PACKAGE)) {
-      this.setConfigPackage((String) additionalProperties.get(CONFIG_PACKAGE));
-    } else {
-      additionalProperties.put(CONFIG_PACKAGE, configPackage);
-    }
-    if (additionalProperties.containsKey(BASE_PACKAGE)) {
-      this.setBasePackage((String) additionalProperties.get(BASE_PACKAGE));
-    } else {
-      additionalProperties.put(BASE_PACKAGE, basePackage);
-    }
-    if (additionalProperties.containsKey(DELEGATE_PATTERN)) {
-      this.setDelegatePattern(Boolean.parseBoolean(additionalProperties.get(DELEGATE_PATTERN).toString()));
-    }
-    if (additionalProperties.containsKey(SINGLE_CONTENT_TYPES)) {
-      this.setSingleContentTypes(Boolean.parseBoolean(additionalProperties.get(SINGLE_CONTENT_TYPES).toString()));
-    }
-    if (additionalProperties.containsKey(SKIP_DEFAULT_INTERFACE)) {
-      this.setSkipDefaultInterface(Boolean.parseBoolean(additionalProperties.get(SKIP_DEFAULT_INTERFACE).toString()));
-    }
-    supportingFiles.add(new SupportingFile("application.mustache", ("src.main.resources").replace(".", File.separator), "application.properties"));
-    supportingFiles.add(new SupportingFile("homeController.mustache", (sourceFolder + File.separator + configPackage).replace(".", File.separator), "HomeController.java"));
-    additionalProperties.put("delegate-method", true);
-    additionalProperties.put("isDelegate", "true");
-    apiTemplateFiles.put("apiDelegate.mustache", "Delegate.java");
-    additionalProperties.put("jdk8-default-interface", true);
-    additionalProperties.put("lambdaRemoveDoubleQuote", (Mustache.Lambda) (fragment, writer) -> writer.write(fragment.execute().replaceAll("\"", Matcher.quoteReplacement(""))));
-    additionalProperties.put("lambdaEscapeDoubleQuote", (Mustache.Lambda) (fragment, writer) -> writer.write(fragment.execute().replaceAll("\"", Matcher.quoteReplacement("\\\""))));
-    additionalProperties.put("lambdaRemoveLineBreak", (Mustache.Lambda) (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\r|\\n", "")));
-    additionalProperties.put("lambdaTrimWhitespace", new TrimWhitespaceLambda());
-    additionalProperties.put("lambdaSplitString", new SplitStringLambda());
-    additionalProperties.put("jdk8-default-interface", true);
-*/
     super.processOpts();
-/*
-    if (additionalProperties.containsKey(APP_NAME_QUARKUS)) {
-      //additionalProperties.put("basePackage",basePackage);
-      String nameApp = (String) additionalProperties.get(APP_NAME_QUARKUS);
-      supportingFiles.add(new SupportingFile("openapiQuarkus.mustache", (sourceFolder + File.separator + basePackage).replace(".", File.separator), nameApp + ".java"));
-    } else {
-      supportingFiles.add(new SupportingFile("openapiQuarkus.mustache", (sourceFolder + File.separator + basePackage).replace(".", File.separator), "QuarkusApplication.java"));
-    }
-*/
     log.info("Finish processOpts invokePackage {} apiPackage {} basePackage {} modelPackage {}", invokePackage, apiPackage, basePackage, modelPackage);
 
   }
 
   @Override
-  public CodegenType getTag() {
-    return CodegenType.SERVER;
-  }
-
-  @Override
-  public String getName() {
-    return "quarkus-open-api";
-  }
-
-  @Override
-  public String getHelp() {
-    return "Generates a Java Quarkus Server application using the OpenApi.";
-  }
-
-  @Override
-  public CodegenModel fromModel(String name, Schema model) {
-    CodegenModel ms = super.fromModel(name,model);
-    Set<String> imports = ms.imports.stream().filter(s -> !(s.equals("ApiModel")||s.equals("ApiModelProperty"))).collect(Collectors.toSet());
-    ms.imports = imports;
-    return ms;
-  }
-
-  @Override
-  public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-    super.postProcessModelProperty(model,property);
-    Set<String> imports = model.imports.stream().filter(s -> !(s.equals("ApiModel")||s.equals("ApiModelProperty"))).collect(Collectors.toSet());
-    model.imports = imports;
-  }
-
-  private List<Operation> getOperations(OpenAPI openAPI) {
-    return openAPI.getPaths().values().stream().filter(Objects::nonNull).flatMap(this::getAllPossibleOperations).filter(Objects::nonNull).collect(Collectors.toList());
-  }
-
-  private Stream<Operation> getAllPossibleOperations(PathItem pathItem) {
-    return Stream.of(pathItem.getGet(), pathItem.getPost(), pathItem.getDelete(), pathItem.getHead(), pathItem.getOptions(), pathItem.getPatch(), pathItem.getPut(), pathItem.getTrace());
-  }
-
-  private final HandlebarsEngineAdapter handlebarsEngineAdapter = new HandlebarsEngineAdapter();
-  private final MustacheEngineAdapter mustacheEngineAdapter = new MustacheEngineAdapter();
-  private final TemplatePathLocator locator = new ResourceTemplateLoader();
-  static class ResourceTemplateLoader implements TemplatePathLocator {
-    @Override
-    public String getFullTemplatePath(String relativeTemplateFile) {
-      log.info("ResourceTemplateLoader relativeTemplateFile : {}" ,relativeTemplateFile);
-      return Paths.get("quarkus-open-api","", relativeTemplateFile).toString();
-    }
-  }
-
-  @Override
   public void preprocessOpenAPI(OpenAPI openAPI) {
-
     getOperations(openAPI).forEach(operation -> {
       Map<String, Object> extesions = operation.getExtensions();
       for (Map.Entry<String,Object> m :extesions.entrySet()  ) {
@@ -381,6 +237,20 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
         }
       }
     });
+
+    Map<String, Schema> schemasMapTemp = new HashMap<>();
+    Map<String, Schema> schemasMap = openAPI.getComponents().getSchemas();
+
+    for (Map.Entry<String,Schema> m :schemasMap.entrySet()  ) {
+      if(null!=m.getValue().getExtensions() && m.getValue().getExtensions().containsKey("x-java-r9-rest-entity")&& !((Boolean)m.getValue().getExtensions().get("x-java-r9-rest-entity"))){
+        log.info("preprocessOpenAPI m : {} {} " , m.getKey() , m.getValue().getExtensions());
+        schemasEntitiesMapTemp.put(m.getKey(), m.getValue());
+      }else{
+        schemasMapTemp.put(m.getKey(), m.getValue());
+      }
+    }
+    openAPI.getComponents().setSchemas(schemasMapTemp);;
+
     super.preprocessOpenAPI(openAPI);
     if (!additionalProperties.containsKey(TITLE)) {
       String title = openAPI.getInfo().getTitle();
@@ -397,41 +267,82 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
       URL url = URLPathUtils.getServerURL(openAPI, serverVariableOverrides());
       this.additionalProperties.put(SERVER_PORT, URLPathUtils.getPort(url, 8080));
     }
-/*
-    if (openAPI.getPaths() != null) {
-      for (Map.Entry<String, PathItem> openAPIGetPathsEntry : openAPI.getPaths().entrySet()) {
-        // String pathname = openAPIGetPathsEntry.getKey();
-        //LOGGER.info("preprocessOpenAPI pathnamee : {}", openAPIGetPathsEntry.getKey());
-        PathItem path = openAPIGetPathsEntry.getValue();
-        if (path.readOperations() != null) {
-          for (Operation operation : path.readOperations()) {
-            //LOGGER.info("preprocessOpenAPI operation : {}", operation.getDescription());
-            if (operation.getTags() != null) {
-              List<Map<String, String>> tags = new ArrayList<>();
-              for (String tag : operation.getTags()) {
-                //LOGGER.info("preprocessOpenAPI operation : {} | tag : {}", operation.getDescription(), tag);
-                Map<String, String> value = new HashMap<>();
-                value.put("tag", tag);
-                tags.add(value);
-              }
-              if (operation.getTags().size() > 0) {
-                String tag = operation.getTags().get(0);
-                //LOGGER.info("preprocessOpenAPI operation : {} > tag : {}", operation.getDescription(), tag);
-                operation.setTags(Arrays.asList(tag));
-              }
-              operation.addExtension("x-tags", tags);
-            }
-          }
-        }
-      }
+
+  }
+
+  @Override
+  public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+    //log.info("postProcessModelProperty model {} {} {}" , model.getName(), model.getClassVarName(), model.getDescription());
+    super.postProcessModelProperty(model,property);
+    Set<String> imports = model.imports.stream().filter(s -> !(s.equals("ApiModel")||s.equals("ApiModelProperty"))).collect(Collectors.toSet());
+    model.imports = imports;
+  }
+
+  @Override
+  public CodegenModel fromModel(String name, Schema model) {
+    CodegenModel ms = super.fromModel(name,model);
+    /*Map<String, Object> vendorExtensions = ms.vendorExtensions;
+    if(null!=vendorExtensions && vendorExtensions.containsKey("x-java-r9-rest-entity")&& !((Boolean)vendorExtensions.get("x-java-r9-rest-entity"))){
+      log.info("Entity model ms {} - {} {}", ms.getName(), ms.description, ms.classname);
+      //ms.classname = name;
+      //ms.classVarName = name;
+      //ms.classFilename = name;
+      //ms.classname = this.toModelName(name);
+      //ms.classVarName = this.toVarName(name);
+     // ms.classFilename = this.toModelFilename(name);
+      log.info("modelTemplateFiles.keySet() {}" , modelTemplateFiles.keySet() );
     }*/
+    Set<String> imports = ms.imports.stream().filter(s -> !(s.equals("ApiModel")||s.equals("ApiModelProperty"))).collect(Collectors.toSet());
+    ms.imports = imports;
+    //log.info("fromModel model b {} - {} ", name, ms.classname);
+    return ms;
+  }
+
+  @Override
+  public String toModelName(String name){
+    //log.info("toModelName name a {} " , name);
+    String nameN = null;
+    Map<String, Schema> schemas = ModelUtils.getSchemas(openAPI);
+    if((null!=schemas.get(name))){
+      String sanitizedName = this.sanitizeName(name);
+      String nameWithPrefixSuffix = sanitizedName;
+      if (!org.apache.commons.lang3.StringUtils.isEmpty(this.modelNamePrefix)) {
+        nameWithPrefixSuffix = this.modelNamePrefix + "_" + sanitizedName;
+      }
+      String camelizedName = org.openapitools.codegen.utils.StringUtils.camelize(nameWithPrefixSuffix);
+      String modelName;
+      if (this.isReservedWord(camelizedName)) {
+        modelName = "Model" + camelizedName;
+        log.warn("{} (reserved word) cannot be used as model name. Renamed to {}", camelizedName, modelName);
+        nameN = modelName;
+      } else if (camelizedName.matches("^\\d.*")) {
+        modelName = "Model" + camelizedName;
+        log.warn("{} (model name starts with number) cannot be used as model name. Renamed to {}", name, modelName);
+        nameN = modelName;
+      } else {
+        nameN = camelizedName;
+      }
+    }else{
+      name = super.toModelName(name);
+    }
+    //log.info("toModelName name b {} " , nameN);
+    return nameN;
+  }
+
+  private List<Operation> getOperations(OpenAPI openAPI) {
+    return openAPI.getPaths().values().stream().filter(Objects::nonNull).flatMap(this::getAllPossibleOperations).filter(Objects::nonNull).collect(Collectors.toList());
+  }
+
+  private Stream<Operation> getAllPossibleOperations(PathItem pathItem) {
+    return Stream.of(pathItem.getGet(), pathItem.getPost(), pathItem.getDelete(), pathItem.getHead(), pathItem.getOptions(), pathItem.getPatch(), pathItem.getPut(), pathItem.getTrace());
+  }
+
+  private static String getUnicodeCharacterOfChar(String ch) {
+    return String.format("%040x", new BigInteger(1, ch.getBytes(/*YOUR_CHARSET?*/)));
   }
 
   @Override
   public Map<String, Object> postProcessOperationsWithModels(Map<String, Object> objs, List<Object> allModels) {
-
-
-
     Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
     if (operations != null) {
       List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
@@ -505,22 +416,22 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
         }
       }
     }
-
-
+    List<Map<String, Object>> listConvertsObjects = new ArrayList<>();
     Map<String, Object> extesionsParent = openAPI.getExtensions();
     if(null != extesionsParent){
       for (Map.Entry<String,Object> m : extesionsParent.entrySet()  ) {
-        //getOperations(openAPI).forEach(operation -> {
-
-        // Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
-
         List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
         for (final CodegenOperation operation : ops) {
           log.info("->  operation summary {} - returnType {}", operation.summary, operation.returnType);
-
-          if(m.getKey().equals("x-java-r9-data-driven")){
+          if(m.getKey().equals("x-java-r9-data-driven") && m.getValue().equals(true)){
             Boolean v = (Boolean)m.getValue();
+            log.info("x-java-r9-data-driven active database  : {} ", additionalProperties.get("database"));
+            Boolean database = (Boolean) additionalProperties.get("database");
             if(v){
+
+
+              String entities_package = (String) additionalProperties.get(ENTITIES_PACKAGE);
+
               String portsPackage = (String) additionalProperties.get("portPackage");
               String portsPackageInput = portsPackage + ".input";
               String portInputUseCaseName = StringUtils.camelize(sanitizeName(operation.operationId), true);
@@ -528,67 +439,188 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
               String portsPackageOutput = portsPackage + ".output";
               String portName = StringUtils.camelize(sanitizeName(operation.operationId), true);
               portName = portName.substring(0, 1).toUpperCase() + portName.substring(1) + "Port";
-              String portsPackageDbOutput = (String)additionalProperties.get("portPackageImpl");
-              String portDbName = StringUtils.camelize(sanitizeName(operation.operationId), true)+ "DbPort";
-              portDbName = portDbName.substring(0, 1).toUpperCase() + portDbName.substring(1) ;
+              String portsPackageDbOutput = (String) additionalProperties.get("portPackageImpl");
+              String portDbName = StringUtils.camelize(sanitizeName(operation.operationId), true) + "DbPort";
+              portDbName = portDbName.substring(0, 1).toUpperCase() + portDbName.substring(1);
 
               {
-                String packagePortInputUseCase = (sourceFolder + File.separator + portsPackageInput).replace(".", File.separator);
-                log.info("x-java-r9-data-driven usecases active on operation {} | iteractor : {} | portsPackageInput: {} | Folder: {}", operation.operationId, portInputUseCaseName, portsPackageInput, packagePortInputUseCase);
+                Map<String, Object> entities = new HashMap<>();
+                List<CodegenParameter> bodyParams = operation.bodyParams;
+                Map<String, Schema> schemas = ModelUtils.getSchemas(openAPI);
+                CodegenModel cmResponse = null;
+                CodegenModel cmEntotyDomain = null;
+                CodegenModel cmEntotyPortModel = null;
+                Map<String, Object> vendorExtensionsEntity = null;
+                Map<String, Object> vendorExtensionsDomain = null;
+                Map<String, Object> vendorExtensionsEntityDb = null;
 
-                TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
-                TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
-                Map<String, Object> data = new HashMap<>();
-                data.put("packagePortInput", portsPackageInput);
-                data.put("classname", portInputUseCaseName);
-                //data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true)+ "UseCase");
-                data.put("dbportClass", portsPackageOutput+"."+portName );
-                data.put("dbportClassVar", StringUtils.camelize(sanitizeName(operation.operationId), true)+ "Port");
-                data.put("operation", operation);
-                operation.vendorExtensions.put("x-java-r9-data-driven", true);
-                operation.vendorExtensions.put("x-java-r9-data-driven-class-invoke", portsPackageInput+"."+portInputUseCaseName );
-                operation.vendorExtensions.put("x-java-r9-data-driven-class-var", StringUtils.camelize(sanitizeName(operation.operationId), true)+ "UseCase");
-                try {
-                  manager.write(data, "portInput.mustache", new File(outputFolder + "/" + packagePortInputUseCase + "/" + portInputUseCaseName + ".java"));
-                } catch (Exception e) {
-                  log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                if (null != bodyParams) {
+                  for (CodegenParameter cp : bodyParams) {
+                    cmResponse = this.fromModel(cp.baseType, schemas.get(cp.baseType));
+                    vendorExtensionsEntity = cmResponse.vendorExtensions;
+                    log.info("vendorExtensionsEntity : {}", vendorExtensionsEntity.keySet());
+                  }
+                  log.info("schemasEntitiesMapTemp : {}", schemasEntitiesMapTemp.keySet());
+                  if (null != schemasEntitiesMapTemp || schemasEntitiesMapTemp.size() > 0) {
+                    log.info("x-java-r9-entity-domian containsKey : {}", vendorExtensionsEntity.get("x-java-r9-entity-domian"));
+                    cmEntotyDomain = this.fromModel(String.valueOf(vendorExtensionsEntity.get("x-java-r9-entity-domian")), schemasEntitiesMapTemp.get(vendorExtensionsEntity.get("x-java-r9-entity-domian")));
+                    vendorExtensionsDomain = cmEntotyDomain.vendorExtensions;
+
+                    log.info("x-java-r9-convert-entity-db containsKey : {}", vendorExtensionsDomain.containsKey("x-java-r9-convert-entity-db"));
+                    if (null != vendorExtensionsDomain && vendorExtensionsDomain.containsKey("x-java-r9-convert-entity-db")) {
+                      String nameDomain = String.valueOf(vendorExtensionsDomain.get("x-java-r9-convert-entity-db"));
+                      cmEntotyPortModel = this.fromModel(nameDomain, schemasEntitiesMapTemp.get(nameDomain));
+                      vendorExtensionsEntityDb = cmEntotyPortModel.vendorExtensions;
+                      log.info("vendorExtensionsEntityDb : {}", vendorExtensionsEntityDb.keySet());
+                    }
+                  }
                 }
+                log.info("Exists cmResponse : {}", null!=cmResponse);
+                log.info("Exists cmEntotyDomain : {}", null!=cmEntotyDomain);
+                log.info("Exists cmEntotyPortModel : {}", null!=cmEntotyPortModel);
+                if (null != cmResponse && null != cmEntotyDomain && null != cmEntotyPortModel) {
+                  log.info("Not create Entity rest select : {}", cmResponse.getName());
+                  log.info("Create Entity domain select : {}", cmEntotyDomain.getName());
+                  log.info("Create Entity port select : {}", cmEntotyPortModel.getName());
+                  log.info("Database config state : {}", database);
+                  entities.put("entityRest",cmResponse);
+                  entities.put("entityDomain",cmEntotyDomain);
+                  entities.put("entityDatabase",cmEntotyPortModel);
+                  listConvertsObjects.add(entities);
+                }
+
+                if (null!=cmEntotyDomain && null!= cmEntotyPortModel &&  database) {
+                  {
+                    String foldersModelDbPort = (sourceFolder + File.separator + portsPackageDbOutput).replace(".", File.separator) + File.separator + "model";
+                    String packageModelDbPort = portsPackageOutput + ".model";
+                    entities.put("entityDatabase-import",packageModelDbPort);
+
+                    log.info("x-java-r9-convert-entity-db entity db class  active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portDbName, packageModelDbPort, foldersModelDbPort);
+                    TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                    TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                    Map<String, Object> data = new HashMap<>();
+
+                    cmEntotyPortModel.classname = cmEntotyPortModel.getName();
+
+                    data.put("packageModelPort", packageModelDbPort);
+                    data.put("model", cmEntotyPortModel);
+                    List<String> listArrayListImport = new ArrayList<>();
+                    listArrayListImport.add("java.util.*;");
+                    data.put("imports", listArrayListImport);
+                    {
+                      String entityName = String.valueOf(vendorExtensionsEntityDb.get("x-java-r9-db-name"));
+                      log.info("Entity Name : {}" , entityName);
+                      String type_database = (String) additionalProperties.get(TYPE_DATABASE);
+                      log.info("Type database : {}" , type_database);
+                      switch (type_database){
+                        case "mongo":
+                          log.info("x-java-r9-convert-entity-db entity db");
+                          data.put("annotation_database_mongo",true);
+                          data.put("annotation_database_entity",entityName);
+                          data.put("extens_database", " extends PanacheMongoEntity ");
+                          break;
+                      }
+
+                    }
+
+                    try {
+                      manager.write(data, "modeldbport.mustache", new File(outputFolder + "/" + foldersModelDbPort + "/" + cmEntotyPortModel.getName() + ".java"));
+                    } catch (Exception e) {
+                      log.error("x-java-r9-convert-entity-db error generate : {} ", e.getLocalizedMessage());
+                    }
+                  }
+                  {
+                    String foldersEntitesDbPort = (sourceFolder + File.separator + entities_package).replace(".", File.separator);
+                    entities.put("entityDomain-import",entities_package);
+                    log.info("x-java-r9-entity-domian entity db class  active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portDbName, entities_package, foldersEntitesDbPort);
+                    TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                    TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                    Map<String, Object> data = new HashMap<>();
+
+                    cmEntotyDomain.classname = cmEntotyDomain.getName();
+
+                    data.put("packageModelPort", entities_package);
+                    data.put("model", cmEntotyDomain);
+
+                    List<String> listArrayListImport = new ArrayList<>();
+                    listArrayListImport.add("java.util.*;");
+                    data.put("imports", listArrayListImport);
+
+                    try {
+                      manager.write(data, "domainModel.mustache", new File(outputFolder + "/" + foldersEntitesDbPort + "/" + cmEntotyDomain.getName() + ".java"));
+                    } catch (Exception e) {
+                      log.error("x-java-r9-entity-domian error generate : {} ", e.getLocalizedMessage());
+                    }
+                  }
+                }
+
               }
+
               {
-                String packagePortOutputUseCase = (sourceFolder + File.separator + portsPackageOutput).replace(".", File.separator);
+
                 {
-                  log.info("x-java-r9-data-driven ports active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portName, portsPackageOutput, packagePortOutputUseCase);
+                  String packagePortInputUseCase = (sourceFolder + File.separator + portsPackageInput).replace(".", File.separator);
+                  log.info("x-java-r9-data-driven usecases active on operation {} | iteractor : {} | portsPackageInput: {} | Folder: {}", operation.operationId, portInputUseCaseName, portsPackageInput, packagePortInputUseCase);
                   TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
                   TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
                   Map<String, Object> data = new HashMap<>();
-                  data.put("packagePortOutput", portsPackageOutput);
-                  data.put("classname", portName);
-                  data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true) + "Port");
+                  data.put("packagePortInput", portsPackageInput);
+                  data.put("classname", portInputUseCaseName);
+                  data.put("dbportClass", portsPackageOutput + "." + portName);
+                  data.put("dbportClassVar", StringUtils.camelize(sanitizeName(operation.operationId), true) + "Port");
                   data.put("operation", operation);
+                  List<String> listArrayListImport = new ArrayList<>();
+                  listArrayListImport.add(modelPackage + ".*;");
+                  data.put("importModel", listArrayListImport);
+                  operation.vendorExtensions.put("x-java-r9-data-driven", true);
+                  operation.vendorExtensions.put("x-java-r9-data-driven-class-invoke", portsPackageInput + "." + portInputUseCaseName);
+                  operation.vendorExtensions.put("x-java-r9-data-driven-class-var", StringUtils.camelize(sanitizeName(operation.operationId), true) + "UseCase");
                   try {
-                    manager.write(data, "portOutput.mustache", new File(outputFolder + "/" + packagePortOutputUseCase + "/" + portName + ".java"));
+                    manager.write(data, "portInput.mustache", new File(outputFolder + "/" + packagePortInputUseCase + "/" + portInputUseCaseName + ".java"));
                   } catch (Exception e) {
                     log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
                   }
                 }
-                log.info("x-java-r9-data-driven active database  : {} ", additionalProperties.get("database"));
-                Boolean database = (Boolean)additionalProperties.get("database");
-                if(database){
-                  String packageDbPortOutputUseCase = (sourceFolder + File.separator + portsPackageDbOutput).replace(".", File.separator);
-                  log.info("x-java-r9-data-driven dbports class  active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portDbName, portsPackageDbOutput, packageDbPortOutputUseCase);
-                  TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
-                  TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
-                  Map<String, Object> data = new HashMap<>();
-                  data.put("packagePortOutput", portsPackageDbOutput);
-                  data.put("classname", portDbName);
-                  data.put("importimplement", portsPackageOutput+".*");
-                  data.put("implementclassname", portName);
-                  //data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true));
-                  data.put("operation", operation);
-                  try {
-                    manager.write(data, "portDbOutput.mustache", new File(outputFolder + "/" + packageDbPortOutputUseCase + "/" + portDbName + ".java"));
-                  } catch (Exception e) {
-                    log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                {
+                  String packagePortOutputUseCase = (sourceFolder + File.separator + portsPackageOutput).replace(".", File.separator);
+                  {
+                    log.info("x-java-r9-data-driven ports active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portName, portsPackageOutput, packagePortOutputUseCase);
+                    TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                    TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("packagePortOutput", portsPackageOutput);
+                    data.put("classname", portName);
+                    data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true) + "Port");
+                    data.put("operation", operation);
+                    List<String> listArrayListImport = new ArrayList<>();
+                    listArrayListImport.add(modelPackage + ".*;");
+                    data.put("importModel", listArrayListImport);
+                    try {
+                      manager.write(data, "portOutput.mustache", new File(outputFolder + "/" + packagePortOutputUseCase + "/" + portName + ".java"));
+                    } catch (Exception e) {
+                      log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                    }
+                  }
+                  if (database) {
+                    String packageDbPortOutputUseCase = (sourceFolder + File.separator + portsPackageDbOutput).replace(".", File.separator);
+                    log.info("x-java-r9-data-driven dbports class  active on operation {} | iteractor : {} | portsPackageOutput: {} | Folder: {}", operation.operationId, portDbName, portsPackageDbOutput, packageDbPortOutputUseCase);
+                    TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+                    TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("packagePortOutput", portsPackageDbOutput);
+                    data.put("classname", portDbName);
+                    data.put("importimplement", portsPackageOutput + ".*");
+                    data.put("implementclassname", portName);
+                    //data.put("varNameOperation", StringUtils.camelize(sanitizeName(operation.operationId), true));
+                    data.put("operation", operation);
+                    List<String> listArrayListImport = new ArrayList<>();
+                    listArrayListImport.add(modelPackage + ".*;");
+                    data.put("importModel", listArrayListImport);
+                    try {
+                      manager.write(data, "portDbOutput.mustache", new File(outputFolder + "/" + packageDbPortOutputUseCase + "/" + portDbName + ".java"));
+                    } catch (Exception e) {
+                      log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+                    }
                   }
                 }
               }
@@ -627,82 +659,110 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
             */
             }
           }
+        }
+        //});
+        /*
+                  entities.put("entityRest",cmResponse);
+                  entities.put("entityDomain",cmResponse);
+                  entities.put("entityDatabase",cmEntotyPortModel);
+        * */
 
+        //converMap
+        if(listConvertsObjects.size()>0){
+          List<String> methodsList = new ArrayList<>();
+          TemplateManagerOptions opts = new TemplateManagerOptions(false, false);
+          TemplateManager manager = new TemplateManager(opts, mustacheEngineAdapter, new TemplatePathLocator[]{locator});
+          String folderConfigPackage = (sourceFolder + File.separator + configPackage).replace(".", File.separator);
+
+          Map<String, Object> data = new HashMap<>();
+          data.put("package", configPackage);
+          data.put("classname", "UtilConvertMapping");
+
+          List<String> listArrayListImport = new ArrayList<>();
+
+          List<Map<String,Map<String, Object>>> ob = new ArrayList<>();
+
+          for (Map<String, Object> entitiesConvert : listConvertsObjects){
+            CodegenModel entityRest = (CodegenModel)entitiesConvert.get("entityRest");
+            log.info("entityRest {}" ,entityRest.classname);
+            CodegenModel entityDomain = (CodegenModel)entitiesConvert.get("entityDomain");
+            log.info("entityDomain {}" ,entityDomain.classname);
+            CodegenModel entityDatabase = (CodegenModel)entitiesConvert.get("entityDatabase");
+            log.info("entityDatabase {}" ,entityDatabase.classname);
+
+            String methodA = "from" + entityDomain.classname + "To" +  entityRest.getClassFilename() ;
+            String methodB = "from" + entityRest.getClassFilename() + "To" +  entityDomain.classname;
+
+            String methodC = "from" + entityDatabase.classname + "To" +  entityDomain.classname ;
+            String methodD = "from" + entityDomain.classname + "To" +  entityDatabase.classname;
+
+            if(!(methodsList.contains(methodA) ||  methodsList.contains(methodB)||  methodsList.contains(methodC)||  methodsList.contains(methodD))){
+              log.info("methodA {}" ,methodA);
+              log.info("methodB {}" ,methodB);
+              methodsList.add(methodA);
+              methodsList.add(methodB);
+
+              //entities.put("entityDomain-import",entities_package);
+              //entities.put("entityDatabase-import",packageModelDbPort);
+              listArrayListImport.add(entitiesConvert.get("entityDomain-import").toString()+".*; ");
+              listArrayListImport.add(entitiesConvert.get("entityDatabase-import").toString()+".*; ");
+              {
+                Map<String, Map<String, Object>> convert = new HashMap<>();
+                Map<String, Object> mff = new HashMap<>();
+                mff.put("returndata", entityRest.getClassFilename());
+                mff.put("nameMethod", methodA);
+                mff.put("param", entityDomain.classname);
+                convert.put("convert",mff);
+                ob.add(convert);
+              }
+              {
+                Map<String, Map<String, Object>> convert = new HashMap<>();
+                Map<String, Object> mff = new HashMap<>();
+                mff.put("returndata", entityDomain.classname);
+                mff.put("nameMethod", methodB);
+                mff.put("param", entityRest.getClassFilename());
+                convert.put("convert",mff);
+                ob.add(convert);
+              }
+              {
+                Map<String, Map<String, Object>> convert = new HashMap<>();
+                Map<String, Object> mff = new HashMap<>();
+                mff.put("returndata", entityDatabase.classname);
+                mff.put("nameMethod", methodC);
+                mff.put("param", entityDomain.classname);
+                convert.put("convert",mff);
+                ob.add(convert);
+              }
+              {
+                Map<String, Map<String, Object>> convert = new HashMap<>();
+                Map<String, Object> mff = new HashMap<>();
+                mff.put("mappging-id", true);
+                mff.put("returndata", entityDomain.classname);
+                mff.put("nameMethod", methodD);
+                mff.put("param", entityDatabase.classname);
+                convert.put("convert",mff);
+                ob.add(convert);
+              }
+
+            }
+          }
+          listArrayListImport.add(modelPackage + ".*;");
+          data.put("imports", listArrayListImport);
+
+          data.put("converts", ob);
+
+          try {
+            manager.write(data, "converMap.mustache", new File(outputFolder + "/" + folderConfigPackage + "/UtilConvertMapping.java"));
+          } catch (Exception e) {
+            log.error("x-java-r9-data-driven error generate : {} ", e.getLocalizedMessage());
+          }
 
         }
 
-
-        //});
       }
     }
-
-
     return super.postProcessOperationsWithModels(objs, allModels);
   }
-/*
-@Override
-    @SuppressWarnings({"static-method", "unchecked"})
-    public Map<String, Object> postProcessAllModels(Map<String, Object> objs) {
-        if (this.useOneOfInterfaces) {
-            // First, add newly created oneOf interfaces
-            for (CodegenModel cm : addOneOfInterfaces) {
-                Map<String, Object> modelValue = new HashMap<>(additionalProperties());
-                modelValue.put("model", cm);
-
-                List<Map<String, String>> importsValue = new ArrayList<>();
-                Map<String, Object> objsValue = new HashMap<>();
-                objsValue.put("models", Collections.singletonList(modelValue));
-                objsValue.put("package", modelPackage());
-                objsValue.put("imports", importsValue);
-                objsValue.put("classname", cm.classname);
-                objsValue.putAll(additionalProperties);
-                objs.put(cm.name, objsValue);
-            }
-
-            // Gather data from all the models that contain oneOf into OneOfImplementorAdditionalData classes
-            // (see docstring of that class to find out what information is gathered and why)
-            Map<String, OneOfImplementorAdditionalData> additionalDataMap = new HashMap<String, OneOfImplementorAdditionalData>();
-            for (Map.Entry<String, Object> modelsEntry : objs.entrySet()) {
-                Map<String, Object> modelsAttrs = (Map<String, Object>) modelsEntry.getValue();
-                List<Object> models = (List<Object>) modelsAttrs.get("models");
-                List<Map<String, String>> modelsImports = (List<Map<String, String>>) modelsAttrs.getOrDefault("imports", new ArrayList<Map<String, String>>());
-                for (Object _mo : models) {
-                    Map<String, Object> mo = (Map<String, Object>) _mo;
-                    CodegenModel cm = (CodegenModel) mo.get("model");
-                    if (cm.oneOf.size() > 0) {
-                        cm.vendorExtensions.put("x-is-one-of-interface", true);
-                        for (String one : cm.oneOf) {
-                            if (!additionalDataMap.containsKey(one)) {
-                                additionalDataMap.put(one, new OneOfImplementorAdditionalData(one));
-                            }
-                            additionalDataMap.get(one).addFromInterfaceModel(cm, modelsImports);
-                        }
-                        // if this is oneOf interface, make sure we include the necessary imports for it
-                        addImportsToOneOfInterface(modelsImports);
-                    }
-                }
-            }
-
-            // Add all the data from OneOfImplementorAdditionalData classes to the implementing models
-            for (Map.Entry<String, Object> modelsEntry : objs.entrySet()) {
-                Map<String, Object> modelsAttrs = (Map<String, Object>) modelsEntry.getValue();
-                List<Object> models = (List<Object>) modelsAttrs.get("models");
-                List<Map<String, String>> imports = (List<Map<String, String>>) modelsAttrs.get("imports");
-                for (Object _implmo : models) {
-                    Map<String, Object> implmo = (Map<String, Object>) _implmo;
-                    CodegenModel implcm = (CodegenModel) implmo.get("model");
-                    String modelName = toModelName(implcm.name);
-                    if (additionalDataMap.containsKey(modelName)) {
-                        additionalDataMap.get(modelName).addToImplementor(this, implcm, imports, addOneOfInterfaceImports);
-                    }
-                }
-            }
-        }
-
-        return objs;
-    }
-
- */
 
   private void doDataTypeAssignment(String returnType, DataTypeAssigner dataTypeAssigner) {
     final String rt = returnType;
@@ -729,14 +789,37 @@ public class R9OpenAPIQuarkusCodeGenerator extends AbstractJavaCodegen implement
     }
   }
 
-  private interface DataTypeAssigner {
-    void setReturnType(String returnType);
-    void setReturnContainer(String returnContainer);
+  @Override
+  public CodegenType getTag() {
+    return CodegenType.SERVER;
   }
+
+  @Override
+  public String getName() {
+    return "quarkus-open-api";
+  }
+
+  @Override
+  public String getHelp() {
+    return "Generates a Java Quarkus Server application using the OpenApi.";
+  }
+
 
   @Override
   public void postProcess() {
     log.info("Compile complete");
+  }
+
+  private interface DataTypeAssigner {
+    void setReturnType(String returnType);
+    void setReturnContainer(String returnContainer);
+  }
+  static class ResourceTemplateLoader implements TemplatePathLocator {
+    @Override
+    public String getFullTemplatePath(String relativeTemplateFile) {
+      log.info("ResourceTemplateLoader relativeTemplateFile : {}" ,relativeTemplateFile);
+      return Paths.get("quarkus-open-api","", relativeTemplateFile).toString();
+    }
   }
 
 }

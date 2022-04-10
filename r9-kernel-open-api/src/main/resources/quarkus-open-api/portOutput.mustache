@@ -17,12 +17,23 @@ import javax.enterprise.context.Dependent;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 
+{{#imports}}import {{import}};
+{{/imports}}
+
+{{#importModel}}import {{{.}}}{{/importModel}}
 
 public interface {{classname}} {
 
 {{#operation}}
 
-    {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}});
+    {{>returnTypes}}execute(
+        {{#vendorExtensions.x-java-r9-header}}
+            {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
+        {{/vendorExtensions.x-java-r9-header}}
+        {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}
+        {{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}
+        {{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+    );
 
 {{/operation}}
 
@@ -39,7 +50,16 @@ class {{classname}}ImplDbPort implements {{classname}}{
 
 {{#operation}}
 
-    public {{>returnTypes}}execute({{#allParams}}{{^-last}},{{/-last}}{{#-last}}{{#reactive}}{{/reactive}}{{/-last}}{{/allParams}}){
+    public {{>returnTypes}}execute(
+
+        {{#vendorExtensions.x-java-r9-header}}
+            {{#vendorExtensions.x-java-r9-header-instance}}{{{.}}}{{/vendorExtensions.x-java-r9-header-instance}} ,
+        {{/vendorExtensions.x-java-r9-header}}
+        {{#allParams}}{{^isFile}}{{^isBodyParam}}{{>optionalDataType}}{{/isBodyParam}}{{#isBodyParam}}{{^reactive}}{{{dataType}}}
+        {{/reactive}}{{#reactive}}{{^isArray}}{{{dataType}}}{{/isArray}}{{#isArray}}{{{baseType}}}{{/isArray}}{{/reactive}}
+        {{/isBodyParam}}{{/isFile}}{{#isFile}}{{/isFile}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+
+    ){
         log.info("{{operationId}}ImplDbPort start");
         {{^isArray}}Uni<{{returnType}}> result = Uni.createFrom().voidItem();{{/isArray}}{{#isArray}}Multi<{{returnType}}> result = Multi.createFrom().empty();{{/isArray}}
         return result;

@@ -7,7 +7,18 @@
 
     {{#vendorExtensions.x-java-r9-data-driven}}
 
-        return {{#vendorExtensions.x-java-r9-data-driven-class-var}}{{{.}}}{{/vendorExtensions.x-java-r9-data-driven-class-var}}.execute();
+        return {{#vendorExtensions.x-java-r9-data-driven-class-var}}{{{.}}}{{/vendorExtensions.x-java-r9-data-driven-class-var}}.execute(
+
+        {{#vendorExtensions.x-java-r9-header}}
+            {{#vendorExtensions.x-java-r9-header-param}}{{{.}}}{{/vendorExtensions.x-java-r9-header-param}} ,
+        {{/vendorExtensions.x-java-r9-header}}
+
+        {{#allParams}}{{paramName}}{{^-last}}, {{/-last}}{{/allParams}}
+
+
+
+
+        );
     {{/vendorExtensions.x-java-r9-data-driven}}
 
 
